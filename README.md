@@ -1,41 +1,25 @@
-# VersionVault
+# 🚀 Feature: Person 2 Service Layer Integration (Diff, Provenance & AI Engine)
 
-**Evidence-first document version control for human and AI-modified documents.**
-
-VersionVault proves what changed in your documents before AI ever explains why it matters. Built with immutable snapshots, cryptographic SHA-256 integrity, deterministic diffing, and grounded AI analysis.
-
----
-
-## 🏗 Architecture & Stack
-
-- **Framework**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4
-- **Auth, Database & Storage**: Supabase (PostgreSQL + RLS + Private Storage)
-- **AI Gateway**: OpenRouter (Model agnostic)
-- **Audit & Lineage**: SHA-256 Content & Version chaining
+## 📌 Overview
+This branch bridges VersionVault's core deterministic change analysis and AI intelligence engine (`src/engine/` and `src/ai/`) into the Next.js service layer (`src/services/`). It ensures evidence-first document version control, provenance tracing, and graceful AI fallback mechanisms as specified in `PERSON_2.md` and `PRD.md`.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Summary of Changes
 
-### 1. Configure Environment Variables
-Copy `.env.example` to `.env.local` and supply your credentials:
+### 1. **Diff Service Layer (`src/services/diff.service.ts`)**
+- Implemented `computeDiff(baseVersionId, targetVersionId)` and `getStructuredChanges()` using the deterministic diff engine (`computeStructuredDiff`).
+- Integrated in-memory version content caching helpers for standalone testing, demo workflows, and local execution.
+- Emits canonical `StructuredChange[]` without relying on LLMs for raw change detection.
 
-```bash
-cp .env.example .env.local
-```
+### 2. **AI Service Layer (`src/services/ai.service.ts`)**
+- **Grounded Explanations**: Implemented `getExplanation()` using `explainStructuredChanges` and `OpenRouterGateway` to interpret deterministic diffs with evidence grounding.
+- **AI Proposals & Lifecycle**: Implemented `createProposal()`, `approveProposal()`, and `rejectProposal()` using `ProposalManager` to maintain the strict separation between AI proposals and human approvals.
+- **History Q&A**: Implemented `answerHistoryQuestion()` grounded strictly in version metadata and structured change evidence.
+- **Graceful Degradation**: Configured fallback messaging (`"AI is not accessible at this moment, kindly try again later"`) when OpenRouter credentials are not set or requests fail/timeout.
 
-Required variables:
-- `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (Server-only)
-- `OPENROUTER_API_KEY` & `OPENROUTER_MODEL` (Server-only)
+### 3. **Contracts & Gateway Improvements**
+- **Type Safety**: Updated `metadata` in `src/types/contracts.ts` from `Record<string, any>` to `Record<string, unknown>` to eliminate lint errors.
+- **Gateway Accessor**: Added public `getModel()` accessor in `OpenRouterGateway` (`src/ai/gateway.ts`).
 
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Run Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+---
