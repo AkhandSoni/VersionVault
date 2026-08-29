@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
+import { getCurrentUser } from '@/services/auth.service';
+import { UnauthorizedError, toApiError } from '@/lib/errors';
 
-// GET /api/v1/auth/me
-// TODO: Return the currently authenticated user
 export async function GET() {
-  return NextResponse.json(
-    { error: 'NOT_IMPLEMENTED', message: 'auth.me not implemented' },
-    { status: 501 },
-  );
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      throw new UnauthorizedError('Not authenticated');
+    }
+
+    return NextResponse.json({ user }, { status: 200 });
+  } catch (err) {
+    const apiError = toApiError(err);
+    return NextResponse.json(
+      { error: apiError.error, message: apiError.message },
+      { status: apiError.statusCode },
+    );
+  }
 }

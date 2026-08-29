@@ -41,7 +41,7 @@ export class ProposalManager {
       tenantId: "tenant_default",
       documentId,
       versionId: sourceVersionId,
-      actorId: proposal.actorId,
+      actorId: proposal.actorId ?? "ai_agent",
       actorType: "ai_agent",
       eventType: "AI_PROPOSAL_CREATED",
       timestamp: proposal.createdAt,
@@ -105,7 +105,7 @@ export class ProposalManager {
       parentVersionId: currentBranchHeadVersion.id,
       branchId: proposal.branchId,
       content: proposal.proposedContent,
-      createdBy: proposal.actorId, // AI Agent created content
+      createdBy: proposal.actorId ?? "ai_agent", // AI Agent created content
       message: `AI Proposal Approved by ${approverUserId}: ${proposal.rationale}`,
     });
 
