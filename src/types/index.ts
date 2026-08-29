@@ -122,3 +122,13 @@ export type UploadState =
 'ready' |
 'failed';
 >>>>>>> 390ee37 (feat: implement UI/UX)
+export type {
+    MaterialityCategory,
+    SeverityLevel,
+    StructuredChangeLocation,
+    ProvenanceRecord,
+    LineBlame,
+    SectionBlameHistoryItem,
+    SectionBlame,
+    AIExplanationResult,
+} from './contracts';
