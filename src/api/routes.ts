@@ -25,7 +25,8 @@ export function createRouter(
 
   // GET /api/v1/versions/:baseVersionId/diff/:targetVersionId
   router.get("/api/v1/versions/:baseVersionId/diff/:targetVersionId", (req: Request, res: Response) => {
-    const { baseVersionId, targetVersionId } = req.params;
+    const baseVersionId = req.params.baseVersionId as string;
+    const targetVersionId = req.params.targetVersionId as string;
 
     const baseEntry = versionStore.get(baseVersionId);
     const targetEntry = versionStore.get(targetVersionId);
@@ -47,7 +48,7 @@ export function createRouter(
 
   // GET /api/v1/documents/:documentId/blame
   router.get("/api/v1/documents/:documentId/blame", (req: Request, res: Response) => {
-    const { documentId } = req.params;
+    const documentId = req.params.documentId as string;
 
     const docVersions: Version[] = [];
     const contentsMap = new Map<string, string>();
@@ -113,7 +114,7 @@ export function createRouter(
 
   // POST /api/v1/ai/proposals/:proposalId/approve
   router.post("/api/v1/ai/proposals/:proposalId/approve", (req: Request, res: Response) => {
-    const { proposalId } = req.params;
+    const proposalId = req.params.proposalId as string;
     const { approverUserId, currentHeadVersionId } = req.body;
 
     const currentHead = versionStore.get(currentHeadVersionId)?.version;
