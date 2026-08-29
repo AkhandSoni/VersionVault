@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-# dependencies
+# Dependencies
 /node_modules/
 /.pnp
 .pnp.*
@@ -9,54 +8,30 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# Testing
 /coverage/
 
-# Next.js
+# Next.js & Vite Build Outputs
 /.next/
 /out/
-
-# production
 /build/
 /dist/
+/dist-ssr/
+*.tsbuildinfo
+next-env.d.ts
 
-# misc
-.DS_Store
-*.pem
-
-# debug
-=======
 # Logs
 logs
 *.log
->>>>>>> 390ee37 (feat: implement UI/UX)
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-<<<<<<< HEAD
 
-# env files
+# Environment files — never commit secrets
 .env
 .env.*
 !.env.example
-
-# Vercel
-.vercel/
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
-# development docs
-dev-docs/
-docs/
-=======
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
 *.local
 
 # Editor directories and files
@@ -64,20 +39,15 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+*.pem
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
-# Environment files — never commit secrets
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-# .env.example is intentionally tracked
+# Vercel
+.vercel/
 
-# Internal agent spec docs (not part of shipping frontend)
-src/docs/
->>>>>>> 390ee37 (feat: implement UI/UX)
+# Development docs
+dev-docs/
