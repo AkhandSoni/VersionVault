@@ -45,7 +45,7 @@ export interface ProvenanceRecord {
   targetVersionId: string;
   documentId: string;
   actorId: string;
-  actorType: 'human' | 'user' | 'ai_agent';
+  actorType: 'human' | 'user' | 'ai_agent' | 'system';
   branchId: string;
   timestamp: string;
   storageObjectId: string;
@@ -59,7 +59,7 @@ export interface LineBlame {
   versionId: string;
   versionNumber: number;
   authorId: string;
-  authorType: 'human' | 'user' | 'ai_agent';
+  authorType: 'human' | 'user' | 'ai_agent' | 'system';
   timestamp: string;
   commitMessage?: string;
 }
@@ -122,7 +122,7 @@ export interface ActivityEvent {
   documentId?: string;
   versionId?: string;
   actorId: string;
-  actorType: 'human' | 'user' | 'ai_agent';
+  actorType: 'human' | 'user' | 'ai_agent' | 'system';
   eventType: string;
   timestamp?: string;
   createdAt?: string;

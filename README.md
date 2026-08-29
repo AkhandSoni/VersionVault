@@ -26,7 +26,7 @@ VersionVault proves what changed in your documents before AI ever explains why i
 src/
 ├── app/              # Next.js App Router routes & API endpoints
 ├── components/       # Reusable UI components (DiffViewer, EvidencePanel, etc.)
-├── pages/            # Workspace view pages
+├── views/            # Workspace view pages
 ├── engine/           # Deterministic diffing, materiality classification & provenance
 ├── ai/               # AI gateway, proposals, explanation & history Q&A
 ├── services/         # Business logic services (auth, document, version, branch, etc.)
@@ -58,9 +58,13 @@ npm install
 
 ### 3. Run Development Server
 ```bash
+# Next.js App & API routes
 npm run dev
+
+# Vite Client UI
+npm run dev:vite
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) or [http://localhost:5173](http://localhost:5173) in your browser.
 
 ### 4. Run Tests & Demos
 ```bash

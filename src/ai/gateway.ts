@@ -31,6 +31,10 @@ export class OpenRouterGateway {
     this.timeoutMs = config.timeoutMs || 8000;
   }
 
+  getModel(): string {
+    return this.model;
+  }
+
   /**
    * Generates a grounded AI completion using OpenRouter.
    * If API key is missing, call fails, or times out, safely returns degraded result.
