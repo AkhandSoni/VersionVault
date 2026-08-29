@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
+import { logout } from '@/services/auth.service';
+import { toApiError } from '@/lib/errors';
 
-// POST /api/v1/auth/logout
-// TODO: Implement user logout via Supabase Auth
 export async function POST() {
-  return NextResponse.json(
-    { error: 'NOT_IMPLEMENTED', message: 'auth.logout not implemented' },
-    { status: 501 },
-  );
+  try {
+    await logout();
+    return NextResponse.json(
+      { message: 'Logged out successfully' },
+      { status: 200 },
+    );
+  } catch (err) {
+    const apiError = toApiError(err);
+    return NextResponse.json(
+      { error: apiError.error, message: apiError.message },
+      { status: apiError.statusCode },
+    );
+  }
 }

@@ -15,7 +15,9 @@ const statusLabel: Record<VersionStatus, string> = {
   branch: 'branch',
   restored: 'Restored',
   processing: 'Processing',
-  failed: 'Failed'
+  failed: 'Failed',
+  UPLOADING: 'Uploading',
+  READY: 'Ready'
 };
 
 export function VersionTimeline({ doc, selectedVersionId, onSelect }: VersionTimelineProps) {

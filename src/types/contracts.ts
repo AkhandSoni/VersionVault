@@ -1,19 +1,23 @@
-/**
- * VersionVault — Shared Domain Contracts (Person 2)
- * Grounded Evidence & Intelligence Data Models
- */
+// ============================================================
+// VersionVault — Shared Contracts Bridge
+// Unifies domain entities and Person 2 diff/AI/provenance models.
+// ============================================================
 
-export type ChangeType = "ADDED" | "REMOVED" | "MODIFIED" | "MOVED";
+export * from './domain';
+export * from './enums';
+export * from './api';
 
 export type MaterialityCategory =
-  | "FINANCIAL"
-  | "CONTRACTUAL"
-  | "OPERATIONAL"
-  | "TECHNICAL"
-  | "CONTENT"
-  | "GENERAL";
+  | 'FINANCIAL'
+  | 'CONTRACTUAL'
+  | 'OPERATIONAL'
+  | 'TECHNICAL'
+  | 'CONTENT'
+  | 'GENERAL';
 
-export type SeverityLevel = "LOW" | "MEDIUM" | "HIGH";
+export type SeverityLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export type ChangeType = 'ADDED' | 'REMOVED' | 'MODIFIED' | 'MOVED';
 
 export interface StructuredChangeLocation {
   lineStart?: number;
@@ -32,38 +36,8 @@ export interface StructuredChange {
   newValue?: string;
   category?: MaterialityCategory;
   severity?: SeverityLevel;
-  confidence?: number; // 0.0 to 1.0 for classification confidence
+  confidence?: number;
   location?: StructuredChangeLocation;
-}
-
-export type VersionStatus = "UPLOADING" | "PROCESSING" | "READY" | "FAILED";
-
-export interface Version {
-  id: string;
-  documentId: string;
-  parentVersionId: string | null;
-  branchId: string;
-  versionNumber: number;
-  contentHash: string; // SHA-256 hex string of content
-  versionHash?: string;
-  storageObjectId: string;
-  mimeType: string;
-  fileSize: number;
-  createdBy: string;
-  message?: string;
-  status: VersionStatus;
-  restoreSourceVersionId?: string | null;
-  createdAt: string;
-}
-
-export interface Document {
-  id: string;
-  tenantId: string;
-  title: string;
-  defaultBranchId: string;
-  ownerId: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface ProvenanceRecord {
@@ -71,7 +45,7 @@ export interface ProvenanceRecord {
   targetVersionId: string;
   documentId: string;
   actorId: string;
-  actorType: "user" | "ai_agent" | "system";
+  actorType: 'human' | 'user' | 'ai_agent';
   branchId: string;
   timestamp: string;
   storageObjectId: string;
@@ -85,10 +59,9 @@ export interface LineBlame {
   versionId: string;
   versionNumber: number;
   authorId: string;
-  authorType: "user" | "ai_agent" | "system";
+  authorType: 'human' | 'user' | 'ai_agent';
   timestamp: string;
   commitMessage?: string;
-  changeId?: string;
 }
 
 export interface SectionBlameHistoryItem {
@@ -108,7 +81,7 @@ export interface SectionBlame {
 }
 
 export interface AIExplanationResult {
-  status: "AVAILABLE" | "UNAVAILABLE";
+  status: 'AVAILABLE' | 'PROCESSING' | 'UNAVAILABLE' | 'FAILED';
   explanation?: {
     summary: string;
     businessImpact: string;
@@ -116,49 +89,72 @@ export interface AIExplanationResult {
     referencedChangeIds: string[];
     confidence: number;
   };
-  message?: string; // e.g. "AI is not accessible at this moment, kindly try again later"
+  message?: string;
   retryable?: boolean;
 }
-
-export type AIProposalStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface AIProposal {
   id: string;
   documentId: string;
   branchId: string;
-  sourceVersionId: string; // Base version against which proposal was made
+  sourceVersionId: string;
   proposedContent: string;
-  rationale: string;
-  actorType: "ai_agent";
-  actorId: string;
-  model: string;
-  taskId: string;
-  status: AIProposalStatus;
-  createdAt: string;
+  rationale?: string;
+  taskDescription?: string;
+  actorType?: 'human' | 'user' | 'ai_agent';
+  actorId?: string;
+  agentId?: string;
+  model?: string;
+  taskId?: string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   approvedBy?: string;
   approvedAt?: string;
   rejectedBy?: string;
   rejectedAt?: string;
   resultingVersionId?: string;
+  createdAt: string;
 }
 
 export interface ActivityEvent {
   id: string;
   tenantId: string;
-  documentId: string;
+  documentId?: string;
   versionId?: string;
   actorId: string;
-  actorType: "user" | "ai_agent" | "system";
-  eventType:
-    | "DOCUMENT_CREATED"
-    | "VERSION_CREATED"
-    | "VERSION_RESTORED"
-    | "BRANCH_CREATED"
-    | "AI_PROPOSAL_CREATED"
-    | "AI_PROPOSAL_APPROVED"
-    | "AI_PROPOSAL_REJECTED"
-    | "COLLABORATOR_ADDED"
-    | "COLLABORATOR_REMOVED";
-  timestamp: string;
-  metadata?: Record<string, any>;
+  actorType: 'human' | 'user' | 'ai_agent';
+  eventType: string;
+  timestamp?: string;
+  createdAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Document {
+  id: string;
+  tenantId: string;
+  title: string;
+  currentVersionId?: string | null;
+  defaultBranchId?: string | null;
+  ownerId?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Version {
+  id: string;
+  documentId: string;
+  parentVersionId: string | null;
+  branchId: string;
+  versionNumber: number;
+  contentHash: string;
+  versionHash?: string;
+  storageObjectId: string;
+  mimeType: string;
+  fileSize: number;
+  createdBy: string;
+  message?: string;
+  status: 'UPLOADING' | 'PROCESSING' | 'READY' | 'FAILED';
+  restoreSourceVersionId?: string | null;
+  createdAt: string;
 }
