@@ -128,7 +128,7 @@ export function AppShell({ children }: AppShellProps) {
                 Navigation
               </div>
               {navigationItems.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && (pathname?.startsWith(item.href) ?? false));
                 return (
                   <Link
                     key={item.name}

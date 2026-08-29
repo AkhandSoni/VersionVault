@@ -1,79 +1,52 @@
 {
-<<<<<<< HEAD
   "name": "version-vault",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:vite": "vite",
     "build": "next build",
+    "build:vite": "vite build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "demo": "tsx src/demo/goldenDemo.ts"
+    "demo": "tsx src/demo/goldenDemo.ts",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/ssr": "^0",
-    "@supabase/supabase-js": "^2",
+    "@emotion/react": "^11.13.3",
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
+    "date-fns": "^4.0.0",
     "diff": "^7.0.0",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
+    "framer-motion": "^11.5.4",
+    "lucide-react": "0.522.0",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-router-dom": "^6.26.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/diff": "^5.2.0",
+    "@types/diff": "^5.2.3",
     "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "latest",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "postcss": "latest",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^5",
+    "vite": "^5.2.0",
     "vitest": "^2.1.0"
   }
 }
-=======
-  "name": "versionvault-frontend",
-  "version": "0.0.1",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "npx vite",
-    "build": "npx vite build",
-    "type-check": "npx tsc --noEmit",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "preview": "npx vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@emotion/react": "^11.13.3",
-    "react-router-dom": "^6.26.2",
-    "date-fns": "^4.0.0",
-    "lucide-react": "0.522.0",
-    "framer-motion": "^11.5.4"
-  },
-  "devDependencies": {
-    "@types/node": "^20.11.18",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
-    "@typescript-eslint/eslint-plugin": "^5.54.0",
-    "@typescript-eslint/parser": "^5.54.0",
-    "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.50.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.1",
-    "typescript": "^5.5.4",
-    "vite": "^5.2.0",
-    "tailwindcss": "3.4.17",
-    "autoprefixer": "latest",
-    "postcss": "latest"
-  }
-}
->>>>>>> 390ee37 (feat: implement UI/UX)

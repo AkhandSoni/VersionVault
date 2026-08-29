@@ -21,38 +21,38 @@ export function SideNav() {
   return (
     <nav aria-label="Primary" className="flex h-full flex-col gap-8 px-4 py-6">
       <ul className="space-y-1">
-        {primaryLinks.map(({ to, label, icon: Icon }) =>
-        <li key={to}>
-            <NavLink to={to} className={({ isActive }) => linkClass(isActive)}>
+        {primaryLinks.map(({ to, label, icon: Icon }) => (
+          <li key={to}>
+            <NavLink to={to} className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}>
               <Icon className="h-4 w-4" aria-hidden="true" />
               {label}
             </NavLink>
           </li>
-        )}
+        ))}
       </ul>
 
       <div>
         <p className="label-eyebrow px-3">Your documents</p>
         <ul className="mt-2 space-y-1">
-          {documents.map((doc) =>
-          <li key={doc.id}>
+          {documents.map((doc) => (
+            <li key={doc.id}>
               <NavLink
-              to={`/documents/${doc.id}`}
-              className={({ isActive }) => linkClass(isActive)}
-              title={doc.title}>
-              
+                to={`/documents/${doc.id}`}
+                className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}
+                title={doc.title}
+              >
                 <span className="truncate">{doc.reference}</span>
-                {doc.reviewNeeded ?
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-clay-500" aria-label="Review needed" /> :
-              null}
+                {doc.reviewNeeded ? (
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-clay-500" aria-label="Review needed" />
+                ) : null}
               </NavLink>
             </li>
-          )}
+          ))}
         </ul>
       </div>
 
       <div className="mt-auto">
-        <NavLink to="/settings" className={({ isActive }) => linkClass(isActive)}>
+        <NavLink to="/settings" className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}>
           <SettingsIcon className="h-4 w-4" aria-hidden="true" />
           Settings
         </NavLink>

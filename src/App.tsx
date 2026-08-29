@@ -1,17 +1,17 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
-import { Activity } from './pages/Activity';
-import { Branches } from './pages/Branches';
-import { Dashboard } from './pages/Dashboard';
-import { DocumentWorkspace } from './pages/DocumentWorkspace';
-import { Documents } from './pages/Documents';
-import { Landing } from './pages/Landing';
-import { Login } from './pages/Login';
-import { NotFound } from './pages/NotFound';
-import { Register } from './pages/Register';
-import { Settings } from './pages/Settings';
-import { VersionCompare } from './pages/VersionCompare';
+import { Activity } from './views/Activity';
+import { Branches } from './views/Branches';
+import { Dashboard } from './views/Dashboard';
+import { DocumentWorkspace } from './views/DocumentWorkspace';
+import { Documents } from './views/Documents';
+import { Landing } from './views/Landing';
+import { Login } from './views/Login';
+import { NotFound } from './views/NotFound';
+import { Register } from './views/Register';
+import { Settings } from './views/Settings';
+import { VersionCompare } from './views/VersionCompare';
 
 interface AppProps {
   /** How AI interpretation resolves on the comparison screen. */

@@ -15,6 +15,13 @@ export type MaterialityCategory =
 
 export type SeverityLevel = "LOW" | "MEDIUM" | "HIGH";
 
+export interface StructuredChangeLocation {
+  lineStart?: number;
+  lineEnd?: number;
+  charStart?: number;
+  charEnd?: number;
+}
+
 export interface StructuredChange {
   id: string;
   baseVersionId: string;
@@ -26,12 +33,7 @@ export interface StructuredChange {
   category?: MaterialityCategory;
   severity?: SeverityLevel;
   confidence?: number; // 0.0 to 1.0 for classification confidence
-  location?: {
-    lineStart?: number;
-    lineEnd?: number;
-    charStart?: number;
-    charEnd?: number;
-  };
+  location?: StructuredChangeLocation;
 }
 
 export type VersionStatus = "UPLOADING" | "PROCESSING" | "READY" | "FAILED";
@@ -89,18 +91,20 @@ export interface LineBlame {
   changeId?: string;
 }
 
+export interface SectionBlameHistoryItem {
+  versionId: string;
+  versionNumber: number;
+  authorId: string;
+  changeType: ChangeType;
+  summary: string;
+}
+
 export interface SectionBlame {
   sectionTitle: string;
   lastModifiedVersionId: string;
   lastModifiedBy: string;
   lastModifiedAt: string;
-  changeHistory: {
-    versionId: string;
-    versionNumber: number;
-    authorId: string;
-    changeType: ChangeType;
-    summary: string;
-  }[];
+  changeHistory: SectionBlameHistoryItem[];
 }
 
 export interface AIExplanationResult {
