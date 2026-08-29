@@ -59,6 +59,22 @@ export class ProposalManager {
   }
 
   /**
+   * Lists all proposals for a document
+   */
+  listProposals(documentId?: string): AIProposal[] {
+    const all = Array.from(this.proposals.values());
+    if (!documentId) return all;
+    return all.filter((p) => p.documentId === documentId);
+  }
+
+  /**
+   * Lists pending proposals for a document
+   */
+  listPendingProposals(documentId?: string): AIProposal[] {
+    return this.listProposals(documentId).filter((p) => p.status === 'PENDING');
+  }
+
+  /**
    * Approves an AI proposal after verifying staleness.
    * Creates a new immutable Version via Person 1 contract.
    */

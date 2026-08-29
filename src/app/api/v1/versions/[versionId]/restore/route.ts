@@ -1,14 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { restoreVersion } from '@/services/version.service';
+import { toApiError } from '@/lib/errors';
 
-// POST /api/v1/versions/:versionId/restore — Restore a version
-// TODO: Implement — creates a new immutable version, does NOT delete history
+// POST /api/v1/versions/:versionId/restore — Restore a version (creates new immutable version)
 export async function POST(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ versionId: string }> },
 ) {
-  void await params;
-  return NextResponse.json(
-    { error: 'NOT_IMPLEMENTED', message: 'version.restore not implemented' },
-    { status: 501 },
-  );
+  try {
+    const { versionId } = await params;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const version = await restoreVersion(user.id, versionId, {
+      message: body.message,
+      branchId: body.branchId,
+    });
+
+    return NextResponse.json(version, { status: 201 });
+  } catch (err) {
+    const apiError = toApiError(err);
+    return NextResponse.json({ error: apiError.error, message: apiError.message }, { status: apiError.statusCode });
+  }
 }
