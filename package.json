@@ -2,27 +2,51 @@
   "name": "version-vault",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:vite": "vite",
     "build": "next build",
+    "build:vite": "vite build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "tsx src/demo/goldenDemo.ts",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2",
-    "@supabase/ssr": "^0",
+    "@emotion/react": "^11.13.3",
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
+    "date-fns": "^4.0.0",
+    "diff": "^7.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "framer-motion": "^11.5.4",
+    "lucide-react": "0.522.0",
     "next": "16.3.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-router-dom": "^6.26.2",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/diff": "^5.2.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "latest",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "postcss": "latest",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.19.0",
+    "typescript": "^5",
+    "vite": "^5.2.0",
+    "vitest": "^2.1.0"
   }
 }

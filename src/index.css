@@ -1,0 +1,97 @@
+/* @import url() FONT IMPORTS MUST ALWAYS BE AT THE VERY TOP OF THIS FILE, ABOVE THE TAILWIND IMPORTS — DO NOT DELETE THIS COMMENT */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-line: #e2dfd7;
+  --color-ink: #1f2623;
+  --color-ink-soft: #424b46;
+  --color-ink-muted: #646e68;
+
+  --color-sage-50: #f0f4f1;
+  --color-sage-100: #dde7e0;
+  --color-sage-200: #c3d3c8;
+  --color-sage-300: #9eb7a6;
+  --color-sage-500: #5b7f6b;
+  --color-sage-600: #4a6b58;
+  --color-sage-700: #334e3f;
+
+  --color-clay-50: #fff5f0;
+  --color-clay-100: #feddd0;
+  --color-clay-500: #ea580c;
+  --color-clay-600: #c2410c;
+  --color-clay-700: #9a3412;
+
+  --color-wheat-50: #fefce8;
+  --color-wheat-100: #fef08a;
+  --color-wheat-600: #a16207;
+
+  --color-slate2-50: #f1f5f9;
+  --color-slate2-100: #e2e8f0;
+  --color-slate2-600: #475569;
+
+  /* Bright Energetic Orange Accents */
+  --color-orange-brand: #ff6b00;
+  --color-orange-glow: #ff8533;
+  --color-orange-soft: #fff2e8;
+  --color-orange-border: #ffd1b3;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #f6f5f1;
+  color: #1f2623;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure text on light backgrounds is always sharp and readable */
+p, span, h1, h2, h3, h4, h5, h6, dt, dd, li {
+  text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+}
+
+.label-eyebrow {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #646e68;
+}
+
+/* Glowing tree trunk line */
+.tree-line-orange {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 20px;
+  width: 2.5px;
+  background: linear-gradient(180deg, #ff6b00 0%, #f97316 60%, #fdba74 100%);
+  border-radius: 9999px;
+  box-shadow: 0 0 8px rgba(255, 107, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

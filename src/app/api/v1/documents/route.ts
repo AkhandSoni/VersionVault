@@ -1,18 +1,55 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createDocument, listDocuments } from '@/services/document.service';
+import { toApiError } from '@/lib/errors';
+import { validatePagination } from '@/lib/validation';
 
 // GET  /api/v1/documents — List authorized documents
-// POST /api/v1/documents — Create a new document
-// TODO: Implement with authorization scoping
-export async function GET() {
-  return NextResponse.json(
-    { error: 'NOT_IMPLEMENTED', message: 'documents.list not implemented' },
-    { status: 501 },
-  );
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const tenantId = url.searchParams.get('tenantId');
+    if (!tenantId) {
+      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'tenantId query parameter is required' }, { status: 400 });
+    }
+
+    const { page, pageSize } = validatePagination(
+      url.searchParams.get('page') ?? 1,
+      url.searchParams.get('pageSize') ?? 20,
+    );
+
+    const result = await listDocuments(user.id, tenantId, page, pageSize);
+    return NextResponse.json(result);
+  } catch (err) {
+    const apiError = toApiError(err);
+    return NextResponse.json({ error: apiError.error, message: apiError.message }, { status: apiError.statusCode });
+  }
 }
 
-export async function POST() {
-  return NextResponse.json(
-    { error: 'NOT_IMPLEMENTED', message: 'documents.create not implemented' },
-    { status: 501 },
-  );
+// POST /api/v1/documents — Create a new document
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const doc = await createDocument(user.id, {
+      title: body.title,
+      tenantId: body.tenantId,
+    });
+
+    return NextResponse.json(doc, { status: 201 });
+  } catch (err) {
+    const apiError = toApiError(err);
+    return NextResponse.json({ error: apiError.error, message: apiError.message }, { status: apiError.statusCode });
+  }
 }

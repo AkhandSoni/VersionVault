@@ -3,32 +3,78 @@
 // Uses Supabase Storage — private bucket only.
 // ============================================================
 
-// TODO: Implement private object storage
-//   - upload file to private bucket
-//   - download / get signed URL
-//   - delete object
-//   - path follows: {tenantId}/{documentId}/{versionId}/{objectId}
+import { createServiceClient } from '@/lib/supabase/server';
+import { StorageError, ValidationError } from '@/lib/errors';
+import { STORAGE_BUCKET, SIGNED_URL_EXPIRY_SECONDS } from '@/lib/constants';
 
+/**
+ * Upload an object to the private Supabase Storage bucket.
+ * Path convention: {tenantId}/{documentId}/{versionId}/{objectId}
+ */
 export async function uploadObject(
-  _tenantId: string,
-  _documentId: string,
-  _versionId: string,
-  _objectId: string,
-  _data: Buffer,
-  _mimeType: string,
+  tenantId: string,
+  documentId: string,
+  versionId: string,
+  objectId: string,
+  data: Buffer,
+  mimeType: string,
 ): Promise<{ path: string }> {
-  throw new Error('storage.upload not implemented');
+  // Validate path components against path traversal
+  if (
+    tenantId.includes('..') ||
+    documentId.includes('..') ||
+    versionId.includes('..') ||
+    objectId.includes('..')
+  ) {
+    throw new ValidationError('Invalid path component for storage upload');
+  }
+
+  const storagePath = `${tenantId}/${documentId}/${versionId}/${objectId}`;
+  const supabase = await createServiceClient();
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(storagePath, data, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (error) {
+    throw new StorageError(`Failed to upload file to storage: ${error.message}`);
+  }
+
+  return { path: storagePath };
 }
 
+/**
+ * Generate a short-lived signed URL for an object in private storage.
+ */
 export async function getSignedUrl(
-  _path: string,
-  _expiresInSeconds?: number,
+  path: string,
+  expiresInSeconds: number = SIGNED_URL_EXPIRY_SECONDS,
 ): Promise<string> {
-  throw new Error('storage.getSignedUrl not implemented');
+  const supabase = await createServiceClient();
+
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+
+  if (error || !data?.signedUrl) {
+    throw new StorageError(`Failed to generate signed URL: ${error?.message ?? 'Unknown error'}`);
+  }
+
+  return data.signedUrl;
 }
 
-export async function deleteObject(
-  _path: string,
-): Promise<void> {
-  throw new Error('storage.delete not implemented');
+/**
+ * Delete an object from private storage.
+ */
+export async function deleteObject(path: string): Promise<void> {
+  const supabase = await createServiceClient();
+
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).remove([path]);
+
+  if (error) {
+    throw new StorageError(`Failed to delete object from storage: ${error.message}`);
+  }
 }
