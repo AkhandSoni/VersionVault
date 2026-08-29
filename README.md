@@ -39,15 +39,3 @@ npm install
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## 📚 Project Documentation
-
-The authoritative specifications and contracts are located in the `docs/` folder:
-- [`SECURITY.md`](docs/SECURITY.md) — Mandatory security specification & authorization invariants (Takes precedence).
-- [`PRD.md`](docs/PRD.md) — Core requirements, domain model, and canonical API endpoints.
-- [`PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md) — Architecture, vocabulary, and demo storyline.
-- [`UI_UX.md`](docs/UI_UX.md) — UI direction, layout wireframes, and canonical identifiers.
-- [`TECH_LEAD_SERVICES.md`](docs/TECH_LEAD_SERVICES.md) — Service credentials, env vars, and infrastructure map.
-- Role specifications: `PERSON_1.md` (Backend/Security/Owner), `PERSON_2.md` (Diff/AI), `PERSON_3.md` (Frontend/UI).
