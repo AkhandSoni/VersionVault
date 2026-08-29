@@ -156,5 +156,5 @@ export interface ActivityEvent {
     | "COLLABORATOR_ADDED"
     | "COLLABORATOR_REMOVED";
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
