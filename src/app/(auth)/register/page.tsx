@@ -1,18 +1,12 @@
-// ============================================================
-// Register Page
-// ============================================================
+"use client";
 
-export default function RegisterPage() {
+import RegisterPage from "@/pages/RegisterPage";
+
+export default function Page() {
   return (
     <div data-testid="page-register">
-      <h1 className="text-2xl font-bold text-center mb-8">Create your account</h1>
-      {/* TODO: Implement registration form
-          - Display name, email, password fields
-          - Submit button
-          - Link to login
-          - Supabase Auth integration
-      */}
-      <p className="text-center text-gray-500">Registration form not implemented yet</p>
+      <RegisterPage />
     </div>
   );
 }
+

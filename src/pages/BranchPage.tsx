@@ -1,5 +1,5 @@
 import AppShell from "../components/AppShell";
-import { branches } from "../data/mockData";
+import { branches } from "../data/mockdata";
 
 function BranchPage() {
   return (

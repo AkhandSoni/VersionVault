@@ -1,5 +1,5 @@
 import AppShell from "../components/AppShell";
-import { documents, activities, versions } from "../data/mockData";
+import { documents, activities, versions } from "../data/mockdata";
 
 function DashboardPage() {
   // Data coming from mockData.ts

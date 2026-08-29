@@ -1,6 +1,6 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "@/lib/router-bridge";
 import AppShell from "../components/AppShell";
-import { versionComparison } from "../data/mockdata";;
+import { versionComparison, documents, versions } from "../data/mockdata";
 
 function VersionComparePage() {
   const [searchParams] = useSearchParams();

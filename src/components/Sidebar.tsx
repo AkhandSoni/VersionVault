@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink } from "@/lib/router-bridge";
 
 function Sidebar() {
   const linkClass = ({ isActive }: { isActive: boolean }) =>

@@ -1,32 +1,41 @@
-# React + TypeScript + Vite
+# VersionVault
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**Evidence-first document version control for human and AI-modified documents.**
 
-Currently, two official plugins are available:
+VersionVault proves what changed in your documents before AI ever explains why it matters. Built with immutable snapshots, cryptographic SHA-256 integrity, deterministic diffing, and grounded AI analysis.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🏗 Architecture & Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework**: Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS v4
+- **Auth, Database & Storage**: Supabase (PostgreSQL + RLS + Private Storage)
+- **AI Gateway**: OpenRouter (Model agnostic)
+- **Audit & Lineage**: SHA-256 Content & Version chaining
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## 🚀 Getting Started
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### 1. Configure Environment Variables
+Copy `.env.example` to `.env.local` and supply your credentials:
+
+```bash
+cp .env.example .env.local
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Required variables:
+- `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (Server-only)
+- `OPENROUTER_API_KEY` & `OPENROUTER_MODEL` (Server-only)
+
+### 2. Install Dependencies
+```bash
+npm install
+```
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
