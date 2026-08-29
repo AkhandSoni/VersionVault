@@ -1,27 +1,22 @@
 -- ============================================================
--- VersionVault — Initial Schema & RLS Policies (Person 1)
--- Database: PostgreSQL + Supabase Row Level Security
--- See SECURITY.md for mandatory security invariants.
+-- VersionVault — Complete Relational Database Schema & Migrations
+-- Target Database: PostgreSQL 15+ (Supabase)
+-- Source of Truth: PRD.md §12, SECURITY.md, TECH_LEAD_SERVICES.md
 -- ============================================================
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ------------------------------------------------------------
--- 1. TENANTS
--- Organization / workspace boundaries
--- ------------------------------------------------------------
+-- ============================================================
+-- 1. TENANTS & MEMBERSHIPS (Multi-tenancy isolation)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ------------------------------------------------------------
--- 2. MEMBERSHIPS
--- Maps users to tenants with distinct authorization roles
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.memberships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -31,10 +26,25 @@ CREATE TABLE IF NOT EXISTS public.memberships (
   UNIQUE (user_id, tenant_id)
 );
 
--- ------------------------------------------------------------
+-- ============================================================
+-- 2. BRANCHES (Pre-declaration for foreign keys)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.branches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID NOT NULL,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  head_version_id UUID,
+  base_version_id UUID,
+  status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'ARCHIVED')),
+  created_by TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (document_id, name)
+);
+
+-- ============================================================
 -- 3. DOCUMENTS
--- Logical document entity within a tenant
--- ------------------------------------------------------------
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
@@ -46,27 +56,9 @@ CREATE TABLE IF NOT EXISTS public.documents (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ------------------------------------------------------------
--- 4. BRANCHES
--- Alternate lineage trees for documents
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.branches (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
-  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  head_version_id UUID,
-  base_version_id UUID,
-  status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'ARCHIVED')),
-  created_by UUID NOT NULL REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (document_id, name)
-);
-
--- ------------------------------------------------------------
--- 5. VERSIONS
--- Immutable document snapshots
--- ------------------------------------------------------------
+-- ============================================================
+-- 4. VERSIONS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
@@ -86,27 +78,47 @@ CREATE TABLE IF NOT EXISTS public.versions (
   UNIQUE (document_id, branch_id, version_number)
 );
 
--- Foreign key constraints for documents & branches referencing versions
-ALTER TABLE public.documents
-  ADD CONSTRAINT fk_documents_current_version
-  FOREIGN KEY (current_version_id) REFERENCES public.versions(id) ON DELETE SET NULL;
-
-ALTER TABLE public.documents
-  ADD CONSTRAINT fk_documents_default_branch
-  FOREIGN KEY (default_branch_id) REFERENCES public.branches(id) ON DELETE SET NULL;
-
-ALTER TABLE public.branches
-  ADD CONSTRAINT fk_branches_head_version
-  FOREIGN KEY (head_version_id) REFERENCES public.versions(id) ON DELETE SET NULL;
-
-ALTER TABLE public.branches
-  ADD CONSTRAINT fk_branches_base_version
-  FOREIGN KEY (base_version_id) REFERENCES public.versions(id) ON DELETE SET NULL;
-
 -- ------------------------------------------------------------
--- 6. COLLABORATORS
--- Document-level explicit collaborator permissions
+-- Idempotent Foreign Key Constraints for Circular References
 -- ------------------------------------------------------------
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_documents_current_version'
+  ) THEN
+    ALTER TABLE public.documents
+      ADD CONSTRAINT fk_documents_current_version
+      FOREIGN KEY (current_version_id) REFERENCES public.versions(id) ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_documents_default_branch'
+  ) THEN
+    ALTER TABLE public.documents
+      ADD CONSTRAINT fk_documents_default_branch
+      FOREIGN KEY (default_branch_id) REFERENCES public.branches(id) ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_branches_head_version'
+  ) THEN
+    ALTER TABLE public.branches
+      ADD CONSTRAINT fk_branches_head_version
+      FOREIGN KEY (head_version_id) REFERENCES public.versions(id) ON DELETE SET NULL;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_branches_base_version'
+  ) THEN
+    ALTER TABLE public.branches
+      ADD CONSTRAINT fk_branches_base_version
+      FOREIGN KEY (base_version_id) REFERENCES public.versions(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- ============================================================
+-- 5. COLLABORATORS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.collaborators (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
@@ -117,10 +129,9 @@ CREATE TABLE IF NOT EXISTS public.collaborators (
   UNIQUE (document_id, user_id)
 );
 
--- ------------------------------------------------------------
--- 7. STORAGE OBJECTS
--- Private storage file metadata
--- ------------------------------------------------------------
+-- ============================================================
+-- 6. STORAGE OBJECTS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.storage_objects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
@@ -133,10 +144,9 @@ CREATE TABLE IF NOT EXISTS public.storage_objects (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ------------------------------------------------------------
--- 8. STRUCTURED CHANGES
--- Deterministic diff output between versions
--- ------------------------------------------------------------
+-- ============================================================
+-- 7. STRUCTURED CHANGES
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.structured_changes (
   id TEXT PRIMARY KEY,
   base_version_id UUID NOT NULL REFERENCES public.versions(id) ON DELETE CASCADE,
@@ -152,10 +162,9 @@ CREATE TABLE IF NOT EXISTS public.structured_changes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ------------------------------------------------------------
--- 9. PROCESSING JOBS
--- Background worker tracking
--- ------------------------------------------------------------
+-- ============================================================
+-- 8. PROCESSING JOBS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.processing_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   version_id UUID NOT NULL REFERENCES public.versions(id) ON DELETE CASCADE,
@@ -167,10 +176,9 @@ CREATE TABLE IF NOT EXISTS public.processing_jobs (
   completed_at TIMESTAMPTZ
 );
 
--- ------------------------------------------------------------
--- 10. ACTIVITY EVENTS (Audit Log)
--- Append-only audit trail
--- ------------------------------------------------------------
+-- ============================================================
+-- 9. ACTIVITY EVENTS (Append-only Audit Log)
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.activity_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
@@ -183,10 +191,9 @@ CREATE TABLE IF NOT EXISTS public.activity_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ------------------------------------------------------------
--- 11. AI EXPLANATIONS
--- Grounded interpretations
--- ------------------------------------------------------------
+-- ============================================================
+-- 10. AI EXPLANATIONS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.ai_explanations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   base_version_id UUID NOT NULL REFERENCES public.versions(id) ON DELETE CASCADE,
@@ -198,10 +205,9 @@ CREATE TABLE IF NOT EXISTS public.ai_explanations (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ------------------------------------------------------------
--- 12. AI PROPOSALS
--- Proposed modifications awaiting human review
--- ------------------------------------------------------------
+-- ============================================================
+-- 11. AI PROPOSALS
+-- ============================================================
 CREATE TABLE IF NOT EXISTS public.ai_proposals (
   id TEXT PRIMARY KEY,
   document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
@@ -228,7 +234,7 @@ CREATE TABLE IF NOT EXISTS public.ai_proposals (
 -- INTEGRITY & IMMUTABILITY TRIGGERS
 -- ============================================================
 
--- A. Prevent mutation of READY versions (SECURITY.md §23)
+-- A. Prevent mutation of READY versions
 CREATE OR REPLACE FUNCTION check_version_immutability()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -254,7 +260,7 @@ CREATE TRIGGER tr_version_immutability
   FOR EACH ROW
   EXECUTE FUNCTION check_version_immutability();
 
--- B. Prevent mutation or deletion of Activity Audit Logs (SECURITY.md §36)
+-- B. Prevent mutation or deletion of Activity Audit Logs
 CREATE OR REPLACE FUNCTION check_activity_events_append_only()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -275,7 +281,6 @@ CREATE TRIGGER tr_activity_append_only
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
--- Multi-Tenant Isolation (SECURITY.md §6, §7)
 -- ============================================================
 
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
@@ -317,12 +322,15 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 1. Tenants Policies
+DROP POLICY IF EXISTS "tenants_select_membership" ON public.tenants;
 CREATE POLICY "tenants_select_membership" ON public.tenants
   FOR SELECT USING (public.is_tenant_member(id));
 
+DROP POLICY IF EXISTS "tenants_insert_authenticated" ON public.tenants;
 CREATE POLICY "tenants_insert_authenticated" ON public.tenants
   FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "tenants_update_owner" ON public.tenants;
 CREATE POLICY "tenants_update_owner" ON public.tenants
   FOR UPDATE USING (
     EXISTS (
@@ -332,9 +340,11 @@ CREATE POLICY "tenants_update_owner" ON public.tenants
   );
 
 -- 2. Memberships Policies
+DROP POLICY IF EXISTS "memberships_select_tenant" ON public.memberships;
 CREATE POLICY "memberships_select_tenant" ON public.memberships
   FOR SELECT USING (public.is_tenant_member(tenant_id));
 
+DROP POLICY IF EXISTS "memberships_insert_owner" ON public.memberships;
 CREATE POLICY "memberships_insert_owner" ON public.memberships
   FOR INSERT WITH CHECK (
     auth.role() = 'authenticated' AND (
@@ -346,6 +356,7 @@ CREATE POLICY "memberships_insert_owner" ON public.memberships
     )
   );
 
+DROP POLICY IF EXISTS "memberships_update_owner" ON public.memberships;
 CREATE POLICY "memberships_update_owner" ON public.memberships
   FOR UPDATE USING (
     EXISTS (
@@ -354,6 +365,7 @@ CREATE POLICY "memberships_update_owner" ON public.memberships
     )
   );
 
+DROP POLICY IF EXISTS "memberships_delete_owner" ON public.memberships;
 CREATE POLICY "memberships_delete_owner" ON public.memberships
   FOR DELETE USING (
     EXISTS (
@@ -363,6 +375,7 @@ CREATE POLICY "memberships_delete_owner" ON public.memberships
   );
 
 -- 3. Documents Policies
+DROP POLICY IF EXISTS "documents_select" ON public.documents;
 CREATE POLICY "documents_select" ON public.documents
   FOR SELECT USING (
     public.is_tenant_member(tenant_id) OR
@@ -372,11 +385,13 @@ CREATE POLICY "documents_select" ON public.documents
     )
   );
 
+DROP POLICY IF EXISTS "documents_insert" ON public.documents;
 CREATE POLICY "documents_insert" ON public.documents
   FOR INSERT WITH CHECK (
     public.can_edit_tenant(tenant_id) AND created_by = auth.uid()
   );
 
+DROP POLICY IF EXISTS "documents_update" ON public.documents;
 CREATE POLICY "documents_update" ON public.documents
   FOR UPDATE USING (
     public.can_edit_tenant(tenant_id) OR
@@ -387,16 +402,20 @@ CREATE POLICY "documents_update" ON public.documents
   );
 
 -- 4. Branches Policies
+DROP POLICY IF EXISTS "branches_select" ON public.branches;
 CREATE POLICY "branches_select" ON public.branches
   FOR SELECT USING (public.is_tenant_member(tenant_id));
 
+DROP POLICY IF EXISTS "branches_insert" ON public.branches;
 CREATE POLICY "branches_insert" ON public.branches
   FOR INSERT WITH CHECK (public.can_edit_tenant(tenant_id));
 
+DROP POLICY IF EXISTS "branches_update" ON public.branches;
 CREATE POLICY "branches_update" ON public.branches
   FOR UPDATE USING (public.can_edit_tenant(tenant_id));
 
 -- 5. Versions Policies
+DROP POLICY IF EXISTS "versions_select" ON public.versions;
 CREATE POLICY "versions_select" ON public.versions
   FOR SELECT USING (
     EXISTS (
@@ -408,6 +427,7 @@ CREATE POLICY "versions_select" ON public.versions
     )
   );
 
+DROP POLICY IF EXISTS "versions_insert" ON public.versions;
 CREATE POLICY "versions_insert" ON public.versions
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -420,6 +440,7 @@ CREATE POLICY "versions_insert" ON public.versions
   );
 
 -- 6. Collaborators Policies
+DROP POLICY IF EXISTS "collaborators_select" ON public.collaborators;
 CREATE POLICY "collaborators_select" ON public.collaborators
   FOR SELECT USING (
     EXISTS (
@@ -431,6 +452,7 @@ CREATE POLICY "collaborators_select" ON public.collaborators
     )
   );
 
+DROP POLICY IF EXISTS "collaborators_manage" ON public.collaborators;
 CREATE POLICY "collaborators_manage" ON public.collaborators
   FOR ALL USING (
     EXISTS (
@@ -449,13 +471,16 @@ CREATE POLICY "collaborators_manage" ON public.collaborators
   );
 
 -- 7. Storage Objects Policies
+DROP POLICY IF EXISTS "storage_objects_select" ON public.storage_objects;
 CREATE POLICY "storage_objects_select" ON public.storage_objects
   FOR SELECT USING (public.is_tenant_member(tenant_id));
 
+DROP POLICY IF EXISTS "storage_objects_insert" ON public.storage_objects;
 CREATE POLICY "storage_objects_insert" ON public.storage_objects
   FOR INSERT WITH CHECK (public.can_edit_tenant(tenant_id));
 
 -- 8. Structured Changes Policies
+DROP POLICY IF EXISTS "structured_changes_select" ON public.structured_changes;
 CREATE POLICY "structured_changes_select" ON public.structured_changes
   FOR SELECT USING (
     EXISTS (
@@ -469,13 +494,16 @@ CREATE POLICY "structured_changes_select" ON public.structured_changes
   );
 
 -- 9. Activity Events Policies
+DROP POLICY IF EXISTS "activity_events_select" ON public.activity_events;
 CREATE POLICY "activity_events_select" ON public.activity_events
   FOR SELECT USING (public.is_tenant_member(tenant_id));
 
+DROP POLICY IF EXISTS "activity_events_insert" ON public.activity_events;
 CREATE POLICY "activity_events_insert" ON public.activity_events
   FOR INSERT WITH CHECK (public.is_tenant_member(tenant_id) OR auth.role() = 'authenticated');
 
 -- 10. AI Proposals Policies
+DROP POLICY IF EXISTS "ai_proposals_select" ON public.ai_proposals;
 CREATE POLICY "ai_proposals_select" ON public.ai_proposals
   FOR SELECT USING (
     EXISTS (
@@ -484,6 +512,7 @@ CREATE POLICY "ai_proposals_select" ON public.ai_proposals
     )
   );
 
+DROP POLICY IF EXISTS "ai_proposals_insert" ON public.ai_proposals;
 CREATE POLICY "ai_proposals_insert" ON public.ai_proposals
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -492,6 +521,7 @@ CREATE POLICY "ai_proposals_insert" ON public.ai_proposals
     )
   );
 
+DROP POLICY IF EXISTS "ai_proposals_update" ON public.ai_proposals;
 CREATE POLICY "ai_proposals_update" ON public.ai_proposals
   FOR UPDATE USING (
     EXISTS (
