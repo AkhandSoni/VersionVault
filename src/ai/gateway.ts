@@ -1,11 +1,17 @@
-import { AIExplanationResult } from "../types/contracts.js";
-
 export interface OpenRouterConfig {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   timeoutMs?: number;
 }
+
+type OpenRouterChatResponse = {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+};
 
 export const DEFAULT_AI_UNAVAILABLE_MSG =
   "AI is not accessible at this moment, kindly try again later";
@@ -82,7 +88,7 @@ export class OpenRouterGateway {
         };
       }
 
-      const data = (await response.json()) as any;
+      const data = (await response.json()) as OpenRouterChatResponse;
       const content = data?.choices?.[0]?.message?.content;
 
       if (!content) {
@@ -96,7 +102,7 @@ export class OpenRouterGateway {
         success: true,
         content,
       };
-    } catch (err) {
+    } catch {
       clearTimeout(timeoutId);
       return {
         success: false,

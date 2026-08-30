@@ -2,8 +2,8 @@
 // VersionVault — Diff Service (Person 2)
 // ============================================================
 
-import type { StructuredChange } from '../types/contracts.js';
-import { computeStructuredDiff } from '../engine/diff.js';
+import type { StructuredChange } from '../types/contracts';
+import { computeStructuredDiff } from '../engine/diff';
 
 // In-memory version content store fallback (for demo/standalone test usage)
 const versionContentStore = new Map<string, string>();

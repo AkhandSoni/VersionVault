@@ -88,6 +88,7 @@ export interface AIProposal {
 }
 
 export type ActivityType =
+  | 'DOCUMENT_CREATED'
   | 'VERSION_CREATED'
   | 'CHANGE_DETECTED'
   | 'BRANCH_CREATED'

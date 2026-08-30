@@ -1,5 +1,4 @@
-import { AIProposal, Version, ActivityEvent } from "../types/contracts.js";
-import { normalizeDocument } from "../engine/normalization.js";
+import { AIProposal, Version, ActivityEvent } from "../types/contracts";
 
 export class ProposalManager {
   private proposals: Map<string, AIProposal> = new Map();

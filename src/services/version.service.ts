@@ -13,6 +13,7 @@ import { uploadObject, getSignedUrl } from './storage.service';
 import { getDocument } from './document.service';
 import { logEvent } from './activity.service';
 import { setVersionContent, getStoredVersionContent } from './diff.service';
+import { assertDocumentCanEdit } from './authorization.service';
 import type { Version } from '@/types/domain';
 import type { PaginatedResponse, RestoreVersionRequest } from '@/types';
 
@@ -32,10 +33,7 @@ export async function createVersion(
   const contentHash = sha256(file);
 
   // 3. Verify document exists and user is authorized
-  const doc = await getDocument(userId, documentId);
-  if (!doc) {
-    throw new NotFoundError('Document not found');
-  }
+  const { document: doc } = await assertDocumentCanEdit(userId, documentId);
 
   const supabase = await createServiceClient();
 
@@ -325,6 +323,7 @@ export async function restoreVersion(
   if (!targetVer) {
     throw new NotFoundError('Target version to restore not found');
   }
+  await assertDocumentCanEdit(userId, targetVer.documentId);
 
   // Retrieve content from memory store or download from storage
   let contentBuffer: Buffer;

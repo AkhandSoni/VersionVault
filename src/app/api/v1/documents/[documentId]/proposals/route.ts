@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getDocument } from '@/services/document.service';
 import { createProposal, getProposalManager } from '@/services/ai.service';
 import { toApiError } from '@/lib/errors';
+import { assertDocumentCanEdit } from '@/services/authorization.service';
 
 // GET /api/v1/documents/:documentId/proposals — List proposals for document
 export async function GET(
@@ -42,7 +43,7 @@ export async function POST(
       return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
     }
 
-    await getDocument(user.id, documentId);
+    await assertDocumentCanEdit(user.id, documentId);
 
     const body = await request.json();
     const proposal = await createProposal(

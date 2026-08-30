@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DownloadIcon, SearchIcon, ShieldCheckIcon, CheckIcon } from 'lucide-react';
-import { activityEvents } from '../data/documents';
+import { DownloadIcon, SearchIcon, CheckIcon } from 'lucide-react';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingState } from '../components/LoadingState';
+import { useVaultData } from '../lib/vault-data';
 import { absoluteTime } from '../utils/documents';
 import type { ActivityType } from '../types';
 
 const typeLabel: Record<ActivityType, string> = {
+  DOCUMENT_CREATED: 'Document created',
   VERSION_CREATED: 'Version created',
   CHANGE_DETECTED: 'Change detected',
   BRANCH_CREATED: 'Branch created',
@@ -18,12 +21,13 @@ const typeLabel: Record<ActivityType, string> = {
 
 const filters: Array<{ id: 'all' | 'changes' | 'ai' | 'access'; label: string; types: ActivityType[] }> = [
   { id: 'all', label: 'Everything', types: [] },
-  { id: 'changes', label: 'Versions & changes', types: ['VERSION_CREATED', 'CHANGE_DETECTED', 'VERSION_RESTORED', 'BRANCH_CREATED'] },
+  { id: 'changes', label: 'Versions & changes', types: ['DOCUMENT_CREATED', 'VERSION_CREATED', 'CHANGE_DETECTED', 'VERSION_RESTORED', 'BRANCH_CREATED'] },
   { id: 'ai', label: 'AI & approvals', types: ['AI_PROPOSAL_CREATED', 'HUMAN_APPROVED'] },
   { id: 'access', label: 'Access', types: ['PERMISSION_CHANGED', 'DOCUMENT_DOWNLOADED'] },
 ];
 
 export function Activity() {
+  const { activityEvents, loading, error, refresh } = useVaultData();
   const [active, setActive] = useState<'all' | 'changes' | 'ai' | 'access'>('all');
   const [search, setSearch] = useState('');
   const [exported, setExported] = useState(false);
@@ -53,6 +57,14 @@ export function Activity() {
 
     setExported(true);
     setTimeout(() => setExported(false), 2500);
+  }
+
+  if (loading) {
+    return <LoadingState label="Loading audit trail" rows={5} />;
+  }
+
+  if (error) {
+    return <ErrorState variant="unavailable" description={error} onRetry={() => void refresh()} />;
   }
 
   return (

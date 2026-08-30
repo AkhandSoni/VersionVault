@@ -7,7 +7,7 @@ interface CreateBranchDialogProps {
   open: boolean;
   doc: DocumentRecord;
   onClose: () => void;
-  onCreate: (branchName: string) => void;
+  onCreate: (branchName: string, baseVersionId: string) => Promise<void> | void;
 }
 
 export function CreateBranchDialog({ open, doc, onClose, onCreate }: CreateBranchDialogProps) {
@@ -15,17 +15,18 @@ export function CreateBranchDialog({ open, doc, onClose, onCreate }: CreateBranc
   const [baseVersion, setBaseVersion] = useState(doc.currentVersionId);
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!branchName.trim()) return;
 
     setLoading(true);
-    setTimeout(() => {
-      onCreate(branchName.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-'));
-      setLoading(false);
+    try {
+      await onCreate(branchName.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-'), baseVersion);
       onClose();
       setBranchName('');
-    }, 400);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

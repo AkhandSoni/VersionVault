@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { ActivityIcon, FileTextIcon, GitBranchIcon, LayoutGridIcon } from 'lucide-react';
-import { documents } from '../data/documents';
+import { useVaultData } from '../lib/vault-data';
 
 const primaryLinks = [
   { to: '/dashboard', label: 'Overview', icon: LayoutGridIcon },
@@ -20,6 +20,8 @@ function linkClass(isActive: boolean): string {
 }
 
 export function SideNav() {
+  const { documents } = useVaultData();
+
   return (
     <nav aria-label="Primary" className="flex h-full flex-col gap-7 px-4 py-6">
       <ul className="space-y-1">
@@ -52,7 +54,7 @@ export function SideNav() {
                 className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}
                 title={doc.title}
               >
-                {({ isActive }) => (
+                {() => (
                   <>
                     <span className="truncate">{doc.reference}</span>
                     {doc.reviewNeeded ? (

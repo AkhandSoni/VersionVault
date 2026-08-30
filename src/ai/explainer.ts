@@ -1,5 +1,5 @@
-import { StructuredChange, AIExplanationResult } from "../types/contracts.js";
-import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway.js";
+import { StructuredChange, AIExplanationResult } from "../types/contracts";
+import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway";
 
 /**
  * Generates an evidence-grounded AI explanation for structured document changes.
@@ -84,7 +84,7 @@ STRICT RULES:
         confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.9,
       },
     };
-  } catch (err) {
+    } catch {
     return {
       status: "UNAVAILABLE",
       message: DEFAULT_AI_UNAVAILABLE_MSG,

@@ -1,10 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { UploadCloudIcon } from 'lucide-react';
 
 type UploadState = 'idle' | 'selected' | 'uploading' | 'processing' | 'ready' | 'failed';
 
 interface UploadZoneProps {
-  onComplete?: () => void;
+  onComplete?: (file: File, message?: string) => Promise<void> | void;
 }
 
 const statusCopy: Record<UploadState, string> = {
@@ -19,13 +19,52 @@ const statusCopy: Record<UploadState, string> = {
 export function UploadZone({ onComplete }: UploadZoneProps) {
   const [state, setState] = useState<UploadState>('idle');
   const [filename, setFilename] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function selectFile(name: string) {
-    setFilename(name);
+  function selectFile(file: File) {
+    setSelectedFile(file);
+    setFilename(file.name);
+    setError(null);
     setState('selected');
   }
+
+  async function submitUpload() {
+    if (!selectedFile) return;
+    setProgress(30);
+    setState('uploading');
+    setError(null);
+
+    try {
+      await onComplete?.(selectedFile, message.trim() || undefined);
+      setProgress(100);
+      setState('ready');
+      setMessage('');
+    } catch (err) {
+      setState('failed');
+      setError(err instanceof Error ? err.message : 'Upload failed.');
+    }
+  }
+
+  useEffect(() => {
+    if (state !== 'uploading') return;
+
+    const intervalId = window.setInterval(() => {
+      setProgress((current) => {
+        const next = Math.min(current + 20, 100);
+        if (next === 100) {
+          window.clearInterval(intervalId);
+          window.clearInterval(intervalId);
+        }
+        return next;
+      });
+    }, 160);
+
+    return () => window.clearInterval(intervalId);
+  }, [onComplete, state]);
 
   return (
     <section
@@ -45,7 +84,7 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
         onDrop={(e) => {
           e.preventDefault();
           const file = e.dataTransfer.files?.[0];
-          if (file) selectFile(file.name);
+          if (file) selectFile(file);
         }}
         className={`mt-5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all duration-150 ease-serene ${
           state === 'selected'
@@ -76,8 +115,15 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) selectFile(file.name);
+            if (file) selectFile(file);
           }}
+        />
+
+        <textarea
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder="Optional revision message"
+          className="mt-5 min-h-20 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
         />
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
@@ -91,10 +137,7 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
             type="button"
             data-testid="upload-submit"
             disabled={state !== 'selected'}
-            onClick={() => {
-              setProgress(0);
-              setState('uploading');
-            }}
+            onClick={() => void submitUpload()}
             className="rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all duration-150 ease-serene hover:from-orange-500 hover:to-amber-500 disabled:cursor-not-allowed disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500 disabled:shadow-none">
             Upload revision
           </button>
@@ -129,7 +172,7 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
 
       {state === 'failed' ? (
         <p className="mt-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-xs font-medium text-rose-800" data-testid="upload-error" role="alert">
-          {statusCopy.failed}
+          {error || statusCopy.failed}
         </p>
       ) : null}
     </section>

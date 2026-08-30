@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
+import { VaultDataProvider } from './lib/vault-data';
 import { Activity } from './views/Activity';
 import { Branches } from './views/Branches';
 import { Dashboard } from './views/Dashboard';
@@ -22,27 +23,29 @@ interface AppProps {
 
 export function App({ aiExplanationState = 'available', documentView = 'list' }: AppProps) {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    <VaultDataProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        <Route element={<AppShell />}>
-          <Route path="/dashboard" element={<Dashboard documentView={documentView} />} />
-          <Route path="/documents" element={<Documents documentView={documentView} />} />
-          <Route path="/documents/:documentId" element={<DocumentWorkspace />} />
-          <Route
-            path="/documents/:documentId/compare/:versionId"
-            element={<VersionCompare aiStatus={aiExplanationState} />} />
-          
-          <Route path="/branches" element={<Branches />} />
-          <Route path="/activity" element={<Activity />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/app" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>);
+          <Route element={<AppShell />}>
+            <Route path="/dashboard" element={<Dashboard documentView={documentView} />} />
+            <Route path="/documents" element={<Documents documentView={documentView} />} />
+            <Route path="/documents/:documentId" element={<DocumentWorkspace />} />
+            <Route
+              path="/documents/:documentId/compare/:versionId"
+              element={<VersionCompare aiStatus={aiExplanationState} />} />
+
+            <Route path="/branches" element={<Branches />} />
+            <Route path="/activity" element={<Activity />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </VaultDataProvider>);
 
 }

@@ -1,23 +1,44 @@
 import React, { useState } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { FileTextIcon, PlusIcon } from 'lucide-react';
 import { DocumentList } from '../components/DocumentList';
 import { UploadZone } from '../components/UploadZone';
 import { CreateDocumentDialog } from '../components/CreateDocumentDialog';
-import { documents as initialDocuments } from '../data/documents';
-import type { DocumentRecord } from '../types';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingState } from '../components/LoadingState';
+import { useVaultData } from '../lib/vault-data';
 
 interface DocumentsProps {
   documentView?: 'list' | 'grid';
 }
 
 export function Documents({ documentView = 'list' }: DocumentsProps) {
-  const [docList, setDocList] = useState<DocumentRecord[]>(initialDocuments);
+  const { documents, loading, error, createDocument, uploadRevision, refresh } = useVaultData();
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedDocId, setSelectedDocId] = useState('');
+  const activeDocumentId = documents.some((doc) => doc.id === selectedDocId)
+    ? selectedDocId
+    : documents[0]?.id ?? '';
 
-  function handleCreate(newDoc: DocumentRecord) {
-    setDocList((prev) => [newDoc, ...prev]);
-    setNotice(`Document "${newDoc.title}" (${newDoc.reference}) created with initial V1 snapshot.`);
+  async function handleCreate(title: string, initialContent?: string) {
+    await createDocument(title, initialContent);
+    setNotice(`Document "${title}" created in your authorized workspace.`);
+  }
+
+  async function handleUpload(file: File, message?: string) {
+    if (!activeDocumentId) throw new Error('Choose a document before uploading a revision.');
+    await uploadRevision(activeDocumentId, file, message);
+    const doc = documents.find((item) => item.id === activeDocumentId);
+    setNotice(`Revision uploaded${doc ? ` to "${doc.title}"` : ''}. Cryptographic hash recorded.`);
+  }
+
+  if (loading) {
+    return <LoadingState label="Loading documents" rows={5} />;
+  }
+
+  if (error) {
+    return <ErrorState variant="unavailable" description={error} onRetry={() => void refresh()} />;
   }
 
   return (
@@ -45,10 +66,36 @@ export function Documents({ documentView = 'list' }: DocumentsProps) {
         </p>
       )}
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <DocumentList documents={docList} view={documentView} />
-        <UploadZone onComplete={() => setNotice('Revision uploaded. Cryptographic hash recorded.')} />
-      </div>
+      {documents.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            title="No documents yet"
+            description="Create a document before uploading revisions."
+            icon={<FileTextIcon className="h-5 w-5" aria-hidden="true" />}
+          />
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <DocumentList documents={documents} view={documentView} />
+          <div className="space-y-3">
+            <label htmlFor="revision-document" className="label-eyebrow text-ink-muted">
+              Revision target
+            </label>
+            <select
+              id="revision-document"
+              value={activeDocumentId}
+              onChange={(event) => setSelectedDocId(event.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm font-medium text-ink focus:border-orange-500 focus:outline-none">
+              {documents.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  {doc.title}
+                </option>
+              ))}
+            </select>
+            <UploadZone onComplete={handleUpload} />
+          </div>
+        </div>
+      )}
 
       <CreateDocumentDialog
         open={createOpen}

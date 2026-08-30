@@ -4,11 +4,11 @@
 // ============================================================
 
 import type { AIExplanation, AIProposal } from '@/types/domain';
-import { OpenRouterGateway } from '../ai/gateway.js';
-import { explainStructuredChanges } from '../ai/explainer.js';
-import { ProposalManager } from '../ai/proposals.js';
-import { answerHistoryQuestion as answerHistoryQuestionEngine } from '../ai/historyQa.js';
-import { computeDiff } from './diff.service.js';
+import { OpenRouterGateway } from '../ai/gateway';
+import { explainStructuredChanges } from '../ai/explainer';
+import { ProposalManager } from '../ai/proposals';
+import { answerHistoryQuestion as answerHistoryQuestionEngine } from '../ai/historyQa';
+import { computeDiff } from './diff.service';
 
 // Shared service singletons
 const gateway = new OpenRouterGateway();
@@ -190,6 +190,8 @@ export async function answerHistoryQuestion(
   question: string,
   _userId: string
 ): Promise<{ answer: string; sources: string[] }> {
+  void _userId;
+
   const result = await answerHistoryQuestionEngine(
     question,
     [],

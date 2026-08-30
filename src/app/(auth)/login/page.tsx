@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChromeIcon } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,13 +19,20 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail.includes('@') || !password) {
+      setError('Enter a valid email and password to continue.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       const data = await res.json();
@@ -35,8 +43,8 @@ export default function LoginPage() {
 
       router.push('/dashboard');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -59,6 +67,20 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <a
+          href="/api/v1/auth/google?redirectTo=/dashboard"
+          className="w-full py-2 px-4 rounded-lg bg-zinc-950/80 border border-zinc-800 hover:border-emerald-700 text-xs font-medium text-zinc-100 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <ChromeIcon className="h-3.5 w-3.5 text-emerald-400" />
+          <span>Continue with Google</span>
+        </a>
+
+        <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <span className="h-px flex-1 bg-zinc-800" />
+          Email
+          <span className="h-px flex-1 bg-zinc-800" />
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-zinc-300 mb-1">Email address</label>
           <input

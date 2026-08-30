@@ -1,48 +1,64 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileTextIcon, PlusIcon, SparklesIcon } from 'lucide-react';
-import { DocumentList } from '../components/DocumentList';
+import { FileTextIcon, PlusIcon } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { DocumentList } from '../components/DocumentList';
+import { LoadingState } from '../components/LoadingState';
 import { MaterialChangeBadge } from '../components/MaterialChangeBadge';
 import { CreateDocumentDialog } from '../components/CreateDocumentDialog';
-import { documents as initialDocuments } from '../data/documents';
+import { useVaultData } from '../lib/vault-data';
 import { materialChanges, relativeTime } from '../utils/documents';
-import type { DocumentRecord } from '../types';
 
 interface DashboardProps {
   documentView?: 'list' | 'grid';
 }
 
 export function Dashboard({ documentView = 'list' }: DashboardProps) {
-  const [docList, setDocList] = useState<DocumentRecord[]>(initialDocuments);
+  const { documents, loading, error, createDocument, refresh } = useVaultData();
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const changes = materialChanges().slice(0, 4);
-  const reviews = docList.filter((doc) => doc.reviewNeeded).length;
-  const versions = docList.reduce((total, doc) => total + doc.versionCount, 0);
+  const changes = materialChanges(documents).slice(0, 4);
+  const reviews = documents.filter((doc) => doc.reviewNeeded).length;
+  const versions = documents.reduce((total, doc) => total + doc.versionCount, 0);
 
-  function handleCreate(newDoc: DocumentRecord) {
-    setDocList((prev) => [newDoc, ...prev]);
-    setNotice(`Document "${newDoc.title}" (${newDoc.reference}) created with initial V1 snapshot.`);
+  async function handleCreate(title: string, initialContent?: string) {
+    await createDocument(title, initialContent);
+    setNotice(`Document "${title}" created in your authorized workspace.`);
   }
 
-  if (docList.length === 0) {
+  if (loading) {
+    return <LoadingState label="Loading dashboard" rows={5} />;
+  }
+
+  if (error) {
+    return <ErrorState variant="unavailable" description={error} onRetry={() => void refresh()} />;
+  }
+
+  if (documents.length === 0) {
     return (
-      <EmptyState
-        title="No documents yet"
-        description="Create your first document to start building an immutable history."
-        icon={<FileTextIcon className="h-5 w-5" aria-hidden="true" />}
-        action={
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-orange-700">
-            <PlusIcon className="h-4 w-4" aria-hidden="true" />
-            New document
-          </button>
-        }
-      />
+      <>
+        <EmptyState
+          title="No documents yet"
+          description="Create your first document to start building an immutable history."
+          icon={<FileTextIcon className="h-5 w-5" aria-hidden="true" />}
+          action={
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-xs hover:bg-orange-700">
+              <PlusIcon className="h-4 w-4" aria-hidden="true" />
+              New document
+            </button>
+          }
+        />
+        <CreateDocumentDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreate={handleCreate}
+        />
+      </>
     );
   }
 
@@ -60,7 +76,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
         <dl className="flex gap-8">
           <div>
             <dt className="label-eyebrow">Documents</dt>
-            <dd className="mt-0.5 font-serif text-2xl font-semibold text-ink">{docList.length}</dd>
+            <dd className="mt-0.5 font-serif text-2xl font-semibold text-ink">{documents.length}</dd>
           </div>
           <div>
             <dt className="label-eyebrow">Versions</dt>
@@ -129,7 +145,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
         </div>
 
         <div className="mt-6">
-          <DocumentList documents={docList} view={documentView} />
+          <DocumentList documents={documents} view={documentView} />
         </div>
       </div>
 

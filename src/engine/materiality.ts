@@ -2,7 +2,7 @@ import {
   MaterialityCategory,
   SeverityLevel,
   ChangeType,
-} from "../types/contracts.js";
+} from "../types/contracts";
 
 export interface MaterialityAnalysis {
   category: MaterialityCategory;

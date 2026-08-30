@@ -3,10 +3,11 @@
 // ============================================================
 
 import { createServiceClient } from '@/lib/supabase/server';
-import { NotFoundError, UnauthorizedError, AppError, ValidationError } from '@/lib/errors';
+import { AppError, ValidationError } from '@/lib/errors';
 import { logEvent } from './activity.service';
+import { assertDocumentCanRead, assertDocumentOwner } from './authorization.service';
 import type { Collaborator } from '@/types/domain';
-import type { Permission } from '@/types';
+import type { Permission } from '@/types/enums';
 
 export async function addCollaborator(
   userId: string,
@@ -17,30 +18,12 @@ export async function addCollaborator(
   if (!targetUserId) {
     throw new ValidationError('targetUserId is required');
   }
+  if (permission === 'OWNER') {
+    throw new ValidationError('Use owner transfer flow to grant OWNER permissions');
+  }
 
+  const { document: doc } = await assertDocumentOwner(userId, documentId);
   const supabase = await createServiceClient();
-
-  // 1. Verify document exists & requester is OWNER
-  const { data: doc } = await supabase
-    .from('documents')
-    .select('id, tenant_id, created_by')
-    .eq('id', documentId)
-    .single();
-
-  if (!doc) {
-    throw new NotFoundError('Document not found');
-  }
-
-  const { data: membership } = await supabase
-    .from('memberships')
-    .select('role')
-    .eq('tenant_id', doc.tenant_id)
-    .eq('user_id', userId)
-    .single();
-
-  if (!membership || membership.role !== 'OWNER') {
-    throw new UnauthorizedError('Only workspace owners can add collaborators');
-  }
 
   // 2. Insert collaborator
   const { data: collab, error } = await supabase
@@ -59,7 +42,7 @@ export async function addCollaborator(
   }
 
   await logEvent({
-    tenantId: doc.tenant_id,
+    tenantId: doc.tenantId,
     documentId: documentId,
     actorId: userId,
     actorType: 'human',
@@ -83,16 +66,7 @@ export async function removeCollaborator(
   targetUserId: string,
 ): Promise<void> {
   const supabase = await createServiceClient();
-
-  const { data: doc } = await supabase
-    .from('documents')
-    .select('id, tenant_id')
-    .eq('id', documentId)
-    .single();
-
-  if (!doc) {
-    throw new NotFoundError('Document not found');
-  }
+  const { document: doc } = await assertDocumentOwner(userId, documentId);
 
   const { error } = await supabase
     .from('collaborators')
@@ -103,12 +77,22 @@ export async function removeCollaborator(
   if (error) {
     throw new AppError(`Failed to remove collaborator: ${error.message}`, 'COLLABORATOR_REMOVE_FAILED', 400);
   }
+
+  await logEvent({
+    tenantId: doc.tenantId,
+    documentId,
+    actorId: userId,
+    actorType: 'human',
+    eventType: 'PERMISSION_CHANGED',
+    metadata: { targetUserId, removed: true },
+  });
 }
 
 export async function listCollaborators(
-  _userId: string,
+  userId: string,
   documentId: string,
 ): Promise<Collaborator[]> {
+  await assertDocumentCanRead(userId, documentId);
   const supabase = await createServiceClient();
 
   const { data, error } = await supabase

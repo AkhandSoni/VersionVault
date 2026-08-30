@@ -3,9 +3,10 @@
 // Append-only audit trail.
 // ============================================================
 
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
+import { assertDocumentCanRead, assertTenantMember } from './authorization.service';
 import type { ActivityEvent, ActivityEventType } from '@/types/domain';
 
 export async function logEvent(params: {
@@ -17,7 +18,7 @@ export async function logEvent(params: {
   eventType: ActivityEventType;
   metadata?: Record<string, unknown>;
 }): Promise<ActivityEvent> {
-  const supabase = await createServiceClient();
+  const supabase = await createClient();
 
   const insertData = {
     tenant_id: params.tenantId,
@@ -53,12 +54,13 @@ export async function logEvent(params: {
 }
 
 export async function getDocumentActivity(
-  _userId: string,
+  userId: string,
   documentId: string,
   page = 1,
   pageSize = DEFAULT_PAGE_SIZE,
 ): Promise<ActivityEvent[]> {
-  const supabase = await createServiceClient();
+  await assertDocumentCanRead(userId, documentId);
+  const supabase = await createClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
@@ -87,11 +89,12 @@ export async function getDocumentActivity(
 }
 
 export async function getAuditTrail(
-  _userId: string,
+  userId: string,
   tenantId: string,
   page = 1,
   pageSize = DEFAULT_PAGE_SIZE,
 ): Promise<ActivityEvent[]> {
+  await assertTenantMember(userId, tenantId);
   const supabase = await createServiceClient();
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;

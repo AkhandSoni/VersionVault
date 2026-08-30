@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { approveProposal, rejectProposal, getProposalManager } from '@/services/ai.service';
 import { toApiError } from '@/lib/errors';
+import { assertDocumentCanEdit, assertDocumentCanRead } from '@/services/authorization.service';
 
 // GET /api/v1/proposals/:proposalId — Get proposal detail
 export async function GET(
@@ -21,6 +22,7 @@ export async function GET(
     if (!proposal) {
       return NextResponse.json({ error: 'NOT_FOUND', message: 'Proposal not found' }, { status: 404 });
     }
+    await assertDocumentCanRead(user.id, proposal.documentId);
 
     return NextResponse.json(proposal);
   } catch (err) {
@@ -44,6 +46,13 @@ export async function POST(
 
     const body = await request.json();
     const action = body.action?.toLowerCase();
+    const proposal = getProposalManager().getProposal(proposalId);
+
+    if (!proposal) {
+      return NextResponse.json({ error: 'NOT_FOUND', message: 'Proposal not found' }, { status: 404 });
+    }
+
+    await assertDocumentCanEdit(user.id, proposal.documentId);
 
     if (action === 'approve') {
       const result = await approveProposal(proposalId, user.id);

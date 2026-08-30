@@ -1,32 +1,42 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { GitBranchIcon, PlusIcon } from 'lucide-react';
-import { documents as initialDocuments } from '../data/documents';
-import { relativeTime, versionsOnBranch } from '../utils/documents';
+import { FileTextIcon, GitBranchIcon, PlusIcon } from 'lucide-react';
 import { CreateBranchDialog } from '../components/CreateBranchDialog';
-import type { DocumentRecord } from '../types';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingState } from '../components/LoadingState';
+import { useVaultData } from '../lib/vault-data';
+import { relativeTime, versionsOnBranch } from '../utils/documents';
 
 export function Branches() {
-  const [docList, setDocList] = useState<DocumentRecord[]>(initialDocuments);
-  const [selectedDoc, setSelectedDoc] = useState<DocumentRecord>(initialDocuments[0]);
+  const { documents, loading, error, refresh, createBranch } = useVaultData();
+  const [selectedDocId, setSelectedDocId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const selectedDoc = documents.find((doc) => doc.id === selectedDocId) ?? documents[0] ?? null;
 
-  const branched = docList.filter((doc) => doc.branches.length > 1);
-
-  function handleCreateBranch(branchName: string) {
+  async function handleCreateBranch(branchName: string, baseVersionId: string) {
     if (!selectedDoc) return;
-    const updated = docList.map((d) => {
-      if (d.id === selectedDoc.id) {
-        return {
-          ...d,
-          branches: d.branches.includes(branchName) ? d.branches : [...d.branches, branchName],
-        };
-      }
-      return d;
-    });
-    setDocList(updated);
+    await createBranch(selectedDoc.id, branchName, baseVersionId);
     setNotice(`Branch "${branchName}" created on document "${selectedDoc.title}".`);
+  }
+
+  if (loading) {
+    return <LoadingState label="Loading branches" rows={5} />;
+  }
+
+  if (error) {
+    return <ErrorState variant="unavailable" description={error} onRetry={() => void refresh()} />;
+  }
+
+  if (documents.length === 0) {
+    return (
+      <EmptyState
+        title="No documents yet"
+        description="Create a document and upload at least one version before branching."
+        icon={<FileTextIcon className="h-5 w-5" aria-hidden="true" />}
+      />
+    );
   }
 
   return (
@@ -41,26 +51,24 @@ export function Branches() {
         </div>
         <button
           type="button"
-          onClick={() => {
-            setSelectedDoc(docList[0]);
-            setCreateOpen(true);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:from-orange-500 hover:to-amber-500 transition-all">
+          disabled={!selectedDoc || selectedDoc.versions.length === 0}
+          onClick={() => setCreateOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500 disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500">
           <PlusIcon className="h-4 w-4" />
           Create Branch
         </button>
       </header>
 
-      {notice && (
-        <p role="status" className="mt-6 rounded-xl bg-orange-100 border border-orange-200 px-4 py-3 text-sm font-medium text-orange-950">
+      {notice ? (
+        <p role="status" className="mt-6 rounded-xl border border-orange-200 bg-orange-100 px-4 py-3 text-sm font-medium text-orange-950">
           {notice}
         </p>
-      )}
+      ) : null}
 
       <div className="mt-8 space-y-6">
-        {branched.map((doc) => (
-          <article key={doc.id} className="rounded-2xl border border-line bg-surface shadow-xs overflow-hidden">
-            <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line px-6 py-4 bg-gradient-to-r from-surface to-orange-50/20">
+        {documents.map((doc) => (
+          <article key={doc.id} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-xs">
+            <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line bg-gradient-to-r from-surface to-orange-50/20 px-6 py-4">
               <div>
                 <p className="label-eyebrow text-ink-muted">{doc.reference}</p>
                 <h2 className="mt-0.5 font-serif text-lg font-semibold text-ink">{doc.title}</h2>
@@ -68,16 +76,17 @@ export function Branches() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
+                  disabled={doc.versions.length === 0}
                   onClick={() => {
-                    setSelectedDoc(doc);
+                    setSelectedDocId(doc.id);
                     setCreateOpen(true);
                   }}
-                  className="text-xs font-semibold text-orange-700 hover:text-orange-900 border border-orange-200 bg-orange-50 px-2.5 py-1 rounded-md">
+                  className="rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 hover:text-orange-900 disabled:border-line disabled:bg-canvas disabled:text-ink-muted">
                   + New Branch
                 </button>
                 <Link
                   to={`/documents/${doc.id}`}
-                  className="text-sm font-medium text-ink-muted hover:text-ink underline decoration-line underline-offset-4">
+                  className="text-sm font-medium text-ink-muted underline decoration-line underline-offset-4 hover:text-ink">
                   Open workspace
                 </Link>
               </div>
@@ -95,33 +104,35 @@ export function Branches() {
                         aria-hidden="true"
                       />
                       {branch}
-                      {isMain ? (
-                        <span className="ml-1 rounded-full bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-ink-muted border border-line">
-                          authoritative
-                        </span>
-                      ) : (
-                        <span className="ml-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-900 border border-amber-200">
-                          feature branch
-                        </span>
-                      )}
+                      <span className={`ml-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${
+                        isMain
+                          ? 'border-line bg-canvas text-ink-muted'
+                          : 'border-amber-200 bg-amber-100 text-amber-900'
+                      }`}>
+                        {isMain ? 'authoritative' : 'feature branch'}
+                      </span>
                     </p>
-                    <ol className="mt-4 space-y-3">
-                      {[...versions].reverse().map((version) => (
-                        <li key={version.id} className="flex items-baseline gap-3">
-                          <span className="font-mono text-xs font-semibold text-ink">{version.label}</span>
-                          <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
-                            <span className="font-medium text-ink-soft">{version.author}</span> · {relativeTime(version.timestamp)}
-                          </span>
-                          {version.parentId ? (
-                            <Link
-                              to={`/documents/${doc.id}/compare/${version.id}`}
-                              className="text-xs font-medium text-orange-700 hover:text-orange-900 underline decoration-orange-200 underline-offset-4">
-                              Compare
-                            </Link>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ol>
+                    {versions.length === 0 ? (
+                      <p className="mt-4 text-xs text-ink-muted">No versions recorded on this branch yet.</p>
+                    ) : (
+                      <ol className="mt-4 space-y-3">
+                        {[...versions].reverse().map((version) => (
+                          <li key={version.id} className="flex items-baseline gap-3">
+                            <span className="font-mono text-xs font-semibold text-ink">{version.label}</span>
+                            <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
+                              <span className="font-medium text-ink-soft">{version.author}</span> - {relativeTime(version.timestamp)}
+                            </span>
+                            {version.parentId ? (
+                              <Link
+                                to={`/documents/${doc.id}/compare/${version.id}`}
+                                className="text-xs font-medium text-orange-700 underline decoration-orange-200 underline-offset-4 hover:text-orange-900">
+                                Compare
+                              </Link>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ol>
+                    )}
                   </div>
                 );
               })}
@@ -130,14 +141,14 @@ export function Branches() {
         ))}
       </div>
 
-      {selectedDoc && (
+      {selectedDoc ? (
         <CreateBranchDialog
           open={createOpen}
           doc={selectedDoc}
           onClose={() => setCreateOpen(false)}
           onCreate={handleCreateBranch}
         />
-      )}
+      ) : null}
     </div>
   );
 }

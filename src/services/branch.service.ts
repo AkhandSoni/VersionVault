@@ -5,8 +5,9 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NotFoundError, AppError, ValidationError } from '@/lib/errors';
 import { logEvent } from './activity.service';
+import { assertDocumentCanEdit, assertDocumentCanRead } from './authorization.service';
 import type { Branch } from '@/types/domain';
-import type { CreateBranchRequest } from '@/types';
+import type { CreateBranchRequest } from '@/types/api';
 
 export async function createBranch(
   userId: string,
@@ -17,18 +18,13 @@ export async function createBranch(
     throw new ValidationError('Branch name and baseVersionId are required');
   }
 
-  const supabase = await createServiceClient();
-
-  // Verify document exists and retrieve tenant
-  const { data: doc, error: docError } = await supabase
-    .from('documents')
-    .select('id, tenant_id')
-    .eq('id', documentId)
-    .single();
-
-  if (docError || !doc) {
-    throw new NotFoundError('Document not found');
+  const normalizedName = data.name.trim();
+  if (!normalizedName) {
+    throw new ValidationError('Branch name is required');
   }
+
+  const { document: doc } = await assertDocumentCanEdit(userId, documentId);
+  const supabase = await createServiceClient();
 
   // Verify base version exists
   const { data: baseVer, error: verError } = await supabase
@@ -44,8 +40,8 @@ export async function createBranch(
 
   const branchPayload = {
     document_id: documentId,
-    tenant_id: doc.tenant_id,
-    name: data.name,
+    tenant_id: doc.tenantId,
+    name: normalizedName,
     base_version_id: data.baseVersionId,
     head_version_id: data.baseVersionId,
     status: 'ACTIVE',
@@ -64,7 +60,7 @@ export async function createBranch(
 
   // Audit event
   await logEvent({
-    tenantId: doc.tenant_id,
+    tenantId: doc.tenantId,
     documentId: documentId,
     actorId: userId,
     actorType: 'human',
@@ -86,9 +82,10 @@ export async function createBranch(
 }
 
 export async function listBranches(
-  _userId: string,
+  userId: string,
   documentId: string,
 ): Promise<Branch[]> {
+  await assertDocumentCanRead(userId, documentId);
   const supabase = await createServiceClient();
 
   const { data, error } = await supabase

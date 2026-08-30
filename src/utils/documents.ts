@@ -1,8 +1,7 @@
 import { format, formatDistanceToNow } from 'date-fns';
-import { aiExplanations, documents } from '../data/documents';
-import type { AIExplanation, DocumentRecord, StructuredChange, Version } from '../types';
+import type { DocumentRecord, StructuredChange, Version } from '../types';
 
-export function getDocument(id: string | undefined): DocumentRecord | undefined {
+export function getDocument(documents: DocumentRecord[], id: string | undefined): DocumentRecord | undefined {
   return documents.find((doc) => doc.id === id);
 }
 
@@ -27,12 +26,7 @@ export function versionsOnBranch(doc: DocumentRecord, branch: string): Version[]
   sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
 
-export function explanationFor(change: StructuredChange | undefined): AIExplanation | undefined {
-  if (!change) return undefined;
-  return aiExplanations.find((item) => item.changeId === change.id);
-}
-
-export function materialChanges(): Array<{doc: DocumentRecord;version: Version;change: StructuredChange;}> {
+export function materialChanges(documents: DocumentRecord[]): Array<{doc: DocumentRecord;version: Version;change: StructuredChange;}> {
   const rows: Array<{doc: DocumentRecord;version: Version;change: StructuredChange;}> = [];
   documents.forEach((doc) => {
     doc.versions.forEach((version) => {

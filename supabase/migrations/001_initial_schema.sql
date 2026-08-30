@@ -321,6 +321,90 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION public.is_document_collaborator(target_document_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.collaborators c
+    WHERE c.document_id = target_document_id
+      AND c.user_id = auth.uid()
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_edit_document(target_document_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.documents d
+    WHERE d.id = target_document_id
+      AND (
+        public.can_edit_tenant(d.tenant_id)
+        OR EXISTS (
+          SELECT 1
+          FROM public.collaborators c
+          WHERE c.document_id = d.id
+            AND c.user_id = auth.uid()
+            AND c.role IN ('OWNER', 'CONTRIBUTOR')
+        )
+      )
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_read_document(target_document_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.documents d
+    WHERE d.id = target_document_id
+      AND (
+        public.is_tenant_member(d.tenant_id)
+        OR public.is_document_collaborator(d.id)
+      )
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_manage_document(target_document_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.documents d
+    WHERE d.id = target_document_id
+      AND (
+        d.created_by = auth.uid()
+        OR EXISTS (
+          SELECT 1
+          FROM public.memberships m
+          WHERE m.tenant_id = d.tenant_id
+            AND m.user_id = auth.uid()
+            AND m.role = 'OWNER'
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM public.collaborators c
+          WHERE c.document_id = d.id
+            AND c.user_id = auth.uid()
+            AND c.role = 'OWNER'
+        )
+      )
+  );
+$$;
+
 -- 1. Tenants Policies
 DROP POLICY IF EXISTS "tenants_select_membership" ON public.tenants;
 CREATE POLICY "tenants_select_membership" ON public.tenants
@@ -379,10 +463,7 @@ DROP POLICY IF EXISTS "documents_select" ON public.documents;
 CREATE POLICY "documents_select" ON public.documents
   FOR SELECT USING (
     public.is_tenant_member(tenant_id) OR
-    EXISTS (
-      SELECT 1 FROM public.collaborators
-      WHERE document_id = documents.id AND user_id = auth.uid()
-    )
+    public.is_document_collaborator(id)
   );
 
 DROP POLICY IF EXISTS "documents_insert" ON public.documents;
@@ -393,13 +474,7 @@ CREATE POLICY "documents_insert" ON public.documents
 
 DROP POLICY IF EXISTS "documents_update" ON public.documents;
 CREATE POLICY "documents_update" ON public.documents
-  FOR UPDATE USING (
-    public.can_edit_tenant(tenant_id) OR
-    EXISTS (
-      SELECT 1 FROM public.collaborators
-      WHERE document_id = documents.id AND user_id = auth.uid() AND role IN ('OWNER', 'CONTRIBUTOR')
-    )
-  );
+  FOR UPDATE USING (public.can_edit_document(id));
 
 -- 4. Branches Policies
 DROP POLICY IF EXISTS "branches_select" ON public.branches;
@@ -417,58 +492,23 @@ CREATE POLICY "branches_update" ON public.branches
 -- 5. Versions Policies
 DROP POLICY IF EXISTS "versions_select" ON public.versions;
 CREATE POLICY "versions_select" ON public.versions
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = versions.document_id AND (
-        public.is_tenant_member(d.tenant_id) OR
-        EXISTS (SELECT 1 FROM public.collaborators c WHERE c.document_id = d.id AND c.user_id = auth.uid())
-      )
-    )
-  );
+  FOR SELECT USING (public.can_read_document(document_id));
 
 DROP POLICY IF EXISTS "versions_insert" ON public.versions;
 CREATE POLICY "versions_insert" ON public.versions
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = versions.document_id AND (
-        public.can_edit_tenant(d.tenant_id) OR
-        EXISTS (SELECT 1 FROM public.collaborators c WHERE c.document_id = d.id AND c.user_id = auth.uid() AND c.role IN ('OWNER', 'CONTRIBUTOR'))
-      )
-    )
-  );
+  FOR INSERT WITH CHECK (public.can_edit_document(document_id));
 
 -- 6. Collaborators Policies
 DROP POLICY IF EXISTS "collaborators_select" ON public.collaborators;
 CREATE POLICY "collaborators_select" ON public.collaborators
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = collaborators.document_id AND (
-        public.is_tenant_member(d.tenant_id) OR
-        collaborators.user_id = auth.uid()
-      )
-    )
+    user_id = auth.uid() OR
+    public.can_read_document(document_id)
   );
 
 DROP POLICY IF EXISTS "collaborators_manage" ON public.collaborators;
 CREATE POLICY "collaborators_manage" ON public.collaborators
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = collaborators.document_id AND (
-        EXISTS (
-          SELECT 1 FROM public.memberships m
-          WHERE m.tenant_id = d.tenant_id AND m.user_id = auth.uid() AND m.role = 'OWNER'
-        ) OR
-        EXISTS (
-          SELECT 1 FROM public.collaborators c
-          WHERE c.document_id = d.id AND c.user_id = auth.uid() AND c.role = 'OWNER'
-        )
-      )
-    )
-  );
+  FOR ALL USING (public.can_manage_document(document_id));
 
 -- 7. Storage Objects Policies
 DROP POLICY IF EXISTS "storage_objects_select" ON public.storage_objects;
@@ -485,11 +525,8 @@ CREATE POLICY "structured_changes_select" ON public.structured_changes
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM public.versions v
-      JOIN public.documents d ON d.id = v.document_id
-      WHERE v.id = structured_changes.target_version_id AND (
-        public.is_tenant_member(d.tenant_id) OR
-        EXISTS (SELECT 1 FROM public.collaborators c WHERE c.document_id = d.id AND c.user_id = auth.uid())
-      )
+      WHERE v.id = structured_changes.target_version_id
+        AND public.can_read_document(v.document_id)
     )
   );
 
@@ -505,30 +542,15 @@ CREATE POLICY "activity_events_insert" ON public.activity_events
 -- 10. AI Proposals Policies
 DROP POLICY IF EXISTS "ai_proposals_select" ON public.ai_proposals;
 CREATE POLICY "ai_proposals_select" ON public.ai_proposals
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = ai_proposals.document_id AND public.is_tenant_member(d.tenant_id)
-    )
-  );
+  FOR SELECT USING (public.can_read_document(document_id));
 
 DROP POLICY IF EXISTS "ai_proposals_insert" ON public.ai_proposals;
 CREATE POLICY "ai_proposals_insert" ON public.ai_proposals
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = ai_proposals.document_id AND public.can_edit_tenant(d.tenant_id)
-    )
-  );
+  FOR INSERT WITH CHECK (public.can_edit_document(document_id));
 
 DROP POLICY IF EXISTS "ai_proposals_update" ON public.ai_proposals;
 CREATE POLICY "ai_proposals_update" ON public.ai_proposals
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.documents d
-      WHERE d.id = ai_proposals.document_id AND public.can_edit_tenant(d.tenant_id)
-    )
-  );
+  FOR UPDATE USING (public.can_edit_document(document_id));
 
 -- ============================================================
 -- PRIVATE STORAGE BUCKET
@@ -551,3 +573,96 @@ VALUES (
 ON CONFLICT (id) DO UPDATE SET
   public = false,
   file_size_limit = 52428800;
+
+-- ============================================================
+-- STORAGE OBJECT POLICIES
+-- Path convention: {tenantId}/{documentId}/{versionId}/{objectId}
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.storage_path_tenant_id(object_name TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  RETURN (storage.foldername(object_name))[1]::uuid;
+EXCEPTION
+  WHEN invalid_text_representation OR array_subscript_error THEN
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.storage_path_document_id(object_name TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  RETURN (storage.foldername(object_name))[2]::uuid;
+EXCEPTION
+  WHEN invalid_text_representation OR array_subscript_error THEN
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_read_storage_object(object_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, storage
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.documents d
+    WHERE d.id = public.storage_path_document_id(object_name)
+      AND d.tenant_id = public.storage_path_tenant_id(object_name)
+      AND public.can_read_document(d.id)
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_write_storage_object(object_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, storage
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.documents d
+    WHERE d.id = public.storage_path_document_id(object_name)
+      AND d.tenant_id = public.storage_path_tenant_id(object_name)
+      AND public.can_edit_document(d.id)
+  );
+$$;
+
+DROP POLICY IF EXISTS "documents_bucket_select" ON storage.objects;
+CREATE POLICY "documents_bucket_select" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'documents'
+    AND public.can_read_storage_object(name)
+  );
+
+DROP POLICY IF EXISTS "documents_bucket_insert" ON storage.objects;
+CREATE POLICY "documents_bucket_insert" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'documents'
+    AND public.can_write_storage_object(name)
+  );
+
+DROP POLICY IF EXISTS "documents_bucket_update" ON storage.objects;
+CREATE POLICY "documents_bucket_update" ON storage.objects
+  FOR UPDATE USING (
+    bucket_id = 'documents'
+    AND public.can_write_storage_object(name)
+  )
+  WITH CHECK (
+    bucket_id = 'documents'
+    AND public.can_write_storage_object(name)
+  );
+
+DROP POLICY IF EXISTS "documents_bucket_delete" ON storage.objects;
+CREATE POLICY "documents_bucket_delete" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'documents'
+    AND public.can_write_storage_object(name)
+  );

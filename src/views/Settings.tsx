@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { CheckIcon, SaveIcon, ShieldCheckIcon } from 'lucide-react';
-import { collaborators } from '../data/documents';
+import { useVaultData } from '../lib/vault-data';
 
 export function Settings() {
-  const [name, setName] = useState('Akhand Pratap');
-  const [email, setEmail] = useState('akhand@versionvault.app');
+  const { user, memberships, documents } = useVaultData();
   const [notifyMaterial, setNotifyMaterial] = useState(true);
   const [notifyProposals, setNotifyProposals] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const activeMembership = memberships[0];
+  const displayName = user?.fullName || (user?.email ? user.email.split('@')[0].replace(/[._-]+/g, ' ') : '');
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -65,8 +66,8 @@ export function Settings() {
             <input
               id="settings-name"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={displayName}
+              readOnly
               className="mt-1.5 w-full rounded-xl border border-line bg-canvas/60 px-3.5 py-2.5 text-sm font-medium text-ink focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500" />
           </div>
           <div>
@@ -76,8 +77,8 @@ export function Settings() {
             <input
               id="settings-email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={user?.email ?? ''}
+              readOnly
               className="mt-1.5 w-full rounded-xl border border-line bg-canvas/60 px-3.5 py-2.5 text-sm font-medium text-ink focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500" />
           </div>
         </div>
@@ -124,15 +125,26 @@ export function Settings() {
           People in your workspace
         </h2>
         <ul className="mt-4 divide-y divide-line/80">
-          {collaborators.map((person) => (
-            <li key={person.id} className="flex items-center gap-3 py-3">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink">{person.name}</span>
-                <span className="block truncate text-xs text-ink-muted">{person.email}</span>
+          <li className="flex items-center gap-3 py-3">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">{user?.email ?? 'Authenticated account'}</span>
+              <span className="block truncate text-xs text-ink-muted">
+                {documents.length} authorized document{documents.length === 1 ? '' : 's'}
               </span>
-              <span className="text-xs font-semibold text-ink-soft bg-canvas px-2.5 py-1 rounded-md border border-line">{person.role}</span>
+            </span>
+            <span className="rounded-md border border-line bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-soft">
+              {activeMembership?.role ?? 'MEMBER'}
+            </span>
+          </li>
+          {memberships.length > 1 ? memberships.slice(1).map((membership) => (
+            <li key={membership.id} className="flex items-center gap-3 py-3">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-ink">Workspace {membership.tenantId.slice(0, 8).toUpperCase()}</span>
+                <span className="block truncate text-xs text-ink-muted">Membership created {new Date(membership.createdAt).toLocaleDateString()}</span>
+              </span>
+              <span className="rounded-md border border-line bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-soft">{membership.role}</span>
             </li>
-          ))}
+          )) : null}
         </ul>
         <div className="mt-4 flex items-center gap-2 text-xs leading-relaxed text-ink-muted">
           <ShieldCheckIcon className="h-4 w-4 text-emerald-600 shrink-0" />

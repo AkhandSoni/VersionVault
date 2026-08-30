@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightIcon, ShieldCheckIcon, SparklesIcon, GitBranchIcon, LayersIcon } from 'lucide-react';
+import { ArrowRightIcon, LayersIcon } from 'lucide-react';
 
 const chain = [
   { step: 'What changed', detail: 'Payment Terms · 30 days → 15 days' },
   { step: 'Proof', detail: 'SHA-256 verified · V17 → V18' },
-  { step: 'Who', detail: 'Akhand Pratap · main' },
+  { step: 'Who', detail: 'Authenticated user - main' },
   { step: 'When', detail: '28 Aug 2026, 14:12' },
   { step: 'Why it matters', detail: 'Payment window reduced by 50%' },
 ];
@@ -96,7 +96,7 @@ export function Landing() {
               <dl className="mt-6 border-t border-line pt-5 text-sm">
                 <div className="flex items-baseline justify-between gap-4 py-1.5">
                   <dt className="label-eyebrow">Actor</dt>
-                  <dd className="font-medium text-ink">Akhand Pratap</dd>
+                  <dd className="font-medium text-ink">Authenticated user</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-4 py-1.5">
                   <dt className="label-eyebrow">Integrity</dt>

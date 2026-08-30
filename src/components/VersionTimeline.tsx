@@ -1,5 +1,5 @@
 import React from 'react';
-import { GitBranchIcon, SparklesIcon } from 'lucide-react';
+import { GitBranchIcon } from 'lucide-react';
 import { relativeTime } from '../utils/documents';
 import type { DocumentRecord, Version, VersionStatus } from '../types';
 

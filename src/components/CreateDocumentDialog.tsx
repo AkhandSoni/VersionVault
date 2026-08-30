@@ -1,65 +1,33 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FileTextIcon, PlusIcon, XIcon, ShieldCheckIcon } from 'lucide-react';
-import type { DocumentRecord } from '../types';
-
 interface CreateDocumentDialogProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (newDoc: DocumentRecord) => void;
+  onCreate: (title: string, initialContent?: string) => Promise<void> | void;
 }
 
 export function CreateDocumentDialog({ open, onClose, onCreate }: CreateDocumentDialogProps) {
+  const generatedReference = `VA-2026-${useId().replace(/[^a-z0-9]/gi, '').toUpperCase()}`;
   const [title, setTitle] = useState('');
-  const [reference, setReference] = useState('VA-2026-' + Math.floor(100 + Math.random() * 900));
+  const [reference, setReference] = useState('');
   const [initialContent, setInitialContent] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
 
     setLoading(true);
-
-    setTimeout(() => {
-      const docId = title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const now = new Date().toISOString();
-      const initialVersionId = 'v1';
-
-      const newDoc: DocumentRecord = {
-        id: docId,
-        reference: reference.trim().toUpperCase(),
-        title: title.trim(),
-        role: 'Owner',
-        branches: ['main'],
-        currentVersionId: initialVersionId,
-        versionCount: 1,
-        updatedAt: now,
-        integrity: 'verified',
-        reviewNeeded: false,
-        versions: [
-          {
-            id: initialVersionId,
-            label: 'V1',
-            timestamp: now,
-            author: 'Akhand Pratap',
-            branch: 'main',
-            status: 'current',
-            summary: 'Initial draft and baseline contract created',
-            hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-            source: 'Manual entry',
-            parentId: null,
-            changes: [],
-          },
-        ],
-      };
-
-      onCreate(newDoc);
-      setLoading(false);
+    try {
+      await onCreate(title.trim(), initialContent);
       onClose();
       setTitle('');
+      setReference('');
       setInitialContent('');
-    }, 400);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -124,7 +92,7 @@ export function CreateDocumentDialog({ open, onClose, onCreate }: CreateDocument
                 <input
                   id="doc-reference"
                   type="text"
-                  value={reference}
+                  value={reference || generatedReference}
                   onChange={(e) => setReference(e.target.value)}
                   className="mt-1.5 w-full rounded-xl border border-line bg-canvas/60 px-3.5 py-2.5 font-mono text-sm font-medium text-ink focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
                 />

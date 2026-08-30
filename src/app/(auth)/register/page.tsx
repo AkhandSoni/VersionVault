@@ -7,9 +7,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChromeIcon } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,14 +23,15 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!fullName.trim() || !normalizedEmail.includes('@') || password.length < 8) {
+      setError('Add your name, a valid email, and a password of at least 8 characters.');
       return;
     }
 
@@ -38,7 +41,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password, fullName: fullName.trim() }),
       });
 
       const data = await res.json();
@@ -47,12 +50,16 @@ export default function RegisterPage() {
         throw new Error(data.message || 'Registration failed.');
       }
 
-      setSuccess('Account created! Redirecting to login...');
-      setTimeout(() => {
-        router.push('/login');
-      }, 1500);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      if (data.needsEmailConfirmation) {
+        setSuccess(data.message || 'Check your email to confirm your account, then sign in.');
+        return;
+      }
+
+      setSuccess('Account created. Opening your workspace...');
+      router.push('/dashboard');
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -84,6 +91,33 @@ export default function RegisterPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <a
+          href="/api/v1/auth/google?redirectTo=/dashboard"
+          className="w-full py-2 px-4 rounded-lg bg-zinc-950/80 border border-zinc-800 hover:border-emerald-700 text-xs font-medium text-zinc-100 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <ChromeIcon className="h-3.5 w-3.5 text-emerald-400" />
+          <span>Continue with Google</span>
+        </a>
+
+        <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <span className="h-px flex-1 bg-zinc-800" />
+          Email
+          <span className="h-px flex-1 bg-zinc-800" />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-zinc-300 mb-1">Full name</label>
+          <input
+            type="text"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Your name"
+            autoComplete="name"
+            className="w-full bg-zinc-950/80 border border-zinc-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 outline-hidden transition-colors"
+          />
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-zinc-300 mb-1">Email address</label>
           <input
@@ -103,7 +137,8 @@ export default function RegisterPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimum 6 characters"
+            placeholder="Minimum 8 characters"
+            minLength={8}
             className="w-full bg-zinc-950/80 border border-zinc-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/50 rounded-lg px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 outline-hidden transition-colors"
           />
         </div>

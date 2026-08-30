@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ActivityIcon, FileTextIcon, GitBranchIcon, SearchIcon, SettingsIcon, ArrowRightIcon } from 'lucide-react';
-import { documents } from '../data/documents';
+import { useVaultData } from '../lib/vault-data';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -20,10 +20,12 @@ interface Command {
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const { documents } = useVaultData();
 
-  useEffect(() => {
-    if (open) setQuery('');
-  }, [open]);
+  function closePalette() {
+    setQuery('');
+    onClose();
+  }
 
   const commands = useMemo<Command[]>(() => {
     const docCommands: Command[] = documents.map((doc) => ({
@@ -75,7 +77,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         icon: <SettingsIcon className="h-4 w-4" aria-hidden="true" />,
       },
     ];
-  }, []);
+  }, [documents]);
 
   const results = commands.filter((command) =>
     `${command.label} ${command.hint}`.toLowerCase().includes(query.trim().toLowerCase())
@@ -93,7 +95,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           
           <div
             className="absolute inset-0 bg-ink/25 backdrop-blur-xs"
-            onClick={onClose}
+            onClick={closePalette}
             aria-hidden="true"
           />
 
@@ -114,10 +116,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Escape') onClose();
+                  if (event.key === 'Escape') closePalette();
                   if (event.key === 'Enter' && results[0]) {
                     navigate(results[0].to);
-                    onClose();
+                    closePalette();
                   }
                 }}
                 placeholder="Search documents, versions, clauses, or pages…"
@@ -146,7 +148,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                       type="button"
                       onClick={() => {
                         navigate(command.to);
-                        onClose();
+                        closePalette();
                       }}
                       className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-150 ease-serene hover:bg-orange-50/80 group">
                       <span className="text-orange-600 group-hover:scale-105 transition-transform">{command.icon}</span>

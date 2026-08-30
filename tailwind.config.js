@@ -1,4 +1,4 @@
-export default {content: [
+const config = {content: [
   './index.html',
   './src/**/*.{js,ts,jsx,tsx}'
 ],
@@ -59,3 +59,5 @@ export default {content: [
     },
   },
 }
+
+export default config

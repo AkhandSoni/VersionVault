@@ -58,11 +58,11 @@ export async function GET(
     const section = url.searchParams.get('section');
 
     if (section) {
-      const sectionBlame = computeSectionBlame(section, versions as any, versionContents);
+      const sectionBlame = computeSectionBlame(section, versions, versionContents);
       return NextResponse.json(sectionBlame);
     }
 
-    const blame = computeDocumentBlame(versions as any, versionContents);
+    const blame = computeDocumentBlame(versions, versionContents);
     return NextResponse.json({ data: blame });
   } catch (err) {
     const apiError = toApiError(err);

@@ -1,5 +1,5 @@
-import { Version, StructuredChange, ProvenanceRecord } from "../types/contracts.js";
-import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway.js";
+import { Version, StructuredChange, ProvenanceRecord } from "../types/contracts";
+import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway";
 
 export interface HistoryQAResult {
   status: "AVAILABLE" | "UNAVAILABLE";
@@ -80,7 +80,7 @@ STRICT RULES:
       sourceVersionIds: Array.isArray(parsed.sourceVersionIds) ? parsed.sourceVersionIds : [],
       referencedChangeIds: Array.isArray(parsed.referencedChangeIds) ? parsed.referencedChangeIds : [],
     };
-  } catch (err) {
+    } catch {
     return {
       status: "UNAVAILABLE",
       message: DEFAULT_AI_UNAVAILABLE_MSG,

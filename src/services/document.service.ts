@@ -3,12 +3,13 @@
 // Handles document metadata & scoped tenant queries.
 // ============================================================
 
-import { createServiceClient } from '@/lib/supabase/server';
-import { NotFoundError, UnauthorizedError, ValidationError, AppError } from '@/lib/errors';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { ValidationError, AppError, NotFoundError, ForbiddenError } from '@/lib/errors';
 import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 import { logEvent } from './activity.service';
+import { assertDocumentCanEdit, assertDocumentCanRead } from './authorization.service';
 import type { Document } from '@/types/domain';
-import type { CreateDocumentRequest, UpdateDocumentRequest, PaginatedResponse } from '@/types';
+import type { CreateDocumentRequest, UpdateDocumentRequest, PaginatedResponse } from '@/types/api';
 
 export async function createDocument(
   userId: string,
@@ -22,18 +23,25 @@ export async function createDocument(
     throw new ValidationError('tenantId is required');
   }
 
-  const supabase = await createServiceClient();
+  const supabase = await createClient();
 
-  // 1. Verify user membership in tenant (OWNER or CONTRIBUTOR)
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from('memberships')
     .select('role')
     .eq('tenant_id', data.tenantId)
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
-  if (!membership || membership.role === 'VIEWER') {
-    throw new UnauthorizedError('You do not have permission to create documents in this workspace');
+  if (membershipError) {
+    throw new AppError(`Failed to check workspace membership: ${membershipError.message}`, 'MEMBERSHIP_CHECK_FAILED', 500);
+  }
+
+  if (!membership) {
+    throw new NotFoundError('Workspace not found');
+  }
+
+  if (membership.role !== 'OWNER' && membership.role !== 'CONTRIBUTOR') {
+    throw new ForbiddenError('You do not have permission to edit this workspace');
   }
 
   // 2. Insert document container
@@ -98,49 +106,8 @@ export async function getDocument(
   userId: string,
   documentId: string,
 ): Promise<Document | null> {
-  const supabase = await createServiceClient();
-
-  const { data: doc, error } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('id', documentId)
-    .single();
-
-  if (error || !doc) {
-    throw new NotFoundError('Document not found');
-  }
-
-  // Verify access: user is tenant member or explicit collaborator
-  const { data: isMember } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('tenant_id', doc.tenant_id)
-    .eq('user_id', userId)
-    .single();
-
-  if (!isMember) {
-    const { data: isCollab } = await supabase
-      .from('collaborators')
-      .select('id')
-      .eq('document_id', doc.id)
-      .eq('user_id', userId)
-      .single();
-
-    if (!isCollab) {
-      throw new NotFoundError('Document not found');
-    }
-  }
-
-  return {
-    id: doc.id,
-    tenantId: doc.tenant_id,
-    title: doc.title,
-    currentVersionId: doc.current_version_id,
-    defaultBranchId: doc.default_branch_id,
-    createdBy: doc.created_by,
-    createdAt: doc.created_at,
-    updatedAt: doc.updated_at,
-  };
+  const { document } = await assertDocumentCanRead(userId, documentId);
+  return document;
 }
 
 export async function listDocuments(
@@ -149,18 +116,21 @@ export async function listDocuments(
   page = 1,
   pageSize = DEFAULT_PAGE_SIZE,
 ): Promise<PaginatedResponse<Document>> {
-  const supabase = await createServiceClient();
+  const supabase = await createClient();
 
-  // Verify tenant membership
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from('memberships')
-    .select('id')
+    .select('role')
     .eq('tenant_id', tenantId)
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
+
+  if (membershipError) {
+    throw new AppError(`Failed to check workspace membership: ${membershipError.message}`, 'MEMBERSHIP_CHECK_FAILED', 500);
+  }
 
   if (!membership) {
-    throw new UnauthorizedError('Not authorized for this workspace');
+    throw new NotFoundError('Workspace not found');
   }
 
   const from = (page - 1) * pageSize;
@@ -201,10 +171,7 @@ export async function updateDocument(
   documentId: string,
   data: UpdateDocumentRequest,
 ): Promise<Document> {
-  const doc = await getDocument(userId, documentId);
-  if (!doc) {
-    throw new NotFoundError('Document not found');
-  }
+  const { document: doc } = await assertDocumentCanEdit(userId, documentId);
 
   const supabase = await createServiceClient();
 
