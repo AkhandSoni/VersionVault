@@ -4,6 +4,8 @@
 
 import type { StructuredChange } from '../types/contracts.js';
 import { computeStructuredDiff } from '../engine/diff.js';
+import { createServiceClient } from '@/lib/supabase/server';
+import { downloadObjectContent } from './storage.service';
 
 // In-memory version content store fallback (for demo/standalone test usage)
 const versionContentStore = new Map<string, string>();
@@ -23,6 +25,37 @@ export function getStoredVersionContent(versionId: string): string | undefined {
 }
 
 /**
+ * Retrieves text content for a version (first checks memory cache, then Supabase DB & Storage)
+ */
+export async function resolveVersionText(versionId: string): Promise<string> {
+  const cached = versionContentStore.get(versionId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  try {
+    const supabase = await createServiceClient();
+    const { data: storageObj } = await supabase
+      .from('storage_objects')
+      .select('storage_path')
+      .eq('version_id', versionId)
+      .single();
+
+    if (storageObj?.storage_path) {
+      const text = await downloadObjectContent(storageObj.storage_path);
+      if (text) {
+        setVersionContent(versionId, text);
+        return text;
+      }
+    }
+  } catch {
+    // Fallback if Supabase credentials are not configured or DB is unreachable
+  }
+
+  return '';
+}
+
+/**
  * Computes deterministic structured changes between two document versions.
  */
 export async function computeDiff(
@@ -31,8 +64,8 @@ export async function computeDiff(
   baseContentOverride?: string,
   targetContentOverride?: string
 ): Promise<StructuredChange[]> {
-  const baseContent = baseContentOverride ?? versionContentStore.get(baseVersionId) ?? '';
-  const targetContent = targetContentOverride ?? versionContentStore.get(targetVersionId) ?? '';
+  const baseContent = baseContentOverride ?? (await resolveVersionText(baseVersionId));
+  const targetContent = targetContentOverride ?? (await resolveVersionText(targetVersionId));
 
   const result = computeStructuredDiff(
     baseContent,

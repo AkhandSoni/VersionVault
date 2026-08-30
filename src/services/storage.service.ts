@@ -67,14 +67,19 @@ export async function getSignedUrl(
 }
 
 /**
- * Delete an object from private storage.
+ * Download text content of an object from private storage.
  */
-export async function deleteObject(path: string): Promise<void> {
-  const supabase = await createServiceClient();
-
-  const { error } = await supabase.storage.from(STORAGE_BUCKET).remove([path]);
-
-  if (error) {
-    throw new StorageError(`Failed to delete object from storage: ${error.message}`);
+export async function downloadObjectContent(path: string): Promise<string> {
+  try {
+    const supabase = await createServiceClient();
+    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).download(path);
+    if (error || !data) {
+      return '';
+    }
+    const buffer = await data.arrayBuffer();
+    return Buffer.from(buffer).toString('utf-8');
+  } catch {
+    return '';
   }
 }
+
