@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ActivityIcon, FileTextIcon, GitBranchIcon, LayoutGridIcon, SettingsIcon } from 'lucide-react';
+import { ActivityIcon, FileTextIcon, GitBranchIcon, LayoutGridIcon } from 'lucide-react';
 import { documents } from '../data/documents';
 
 const primaryLinks = [
@@ -67,20 +67,6 @@ export function SideNav() {
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="mt-auto pt-4 border-t border-line/60">
-        <NavLink to="/settings" className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}>
-          {({ isActive }) => (
-            <>
-              <SettingsIcon
-                className={`h-4 w-4 ${isActive ? 'text-orange-600' : 'text-ink-muted'}`}
-                aria-hidden="true"
-              />
-              Settings
-            </>
-          )}
-        </NavLink>
       </div>
     </nav>
   );

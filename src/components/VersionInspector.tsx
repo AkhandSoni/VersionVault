@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRightIcon, RotateCcwIcon, ShieldCheckIcon } from 'lucide-react';
+import { ArrowUpRightIcon, RotateCcwIcon, ShieldCheckIcon, DownloadIcon, CheckIcon } from 'lucide-react';
 import { MaterialChangeBadge } from './MaterialChangeBadge';
 import { absoluteTime, shortHash } from '../utils/documents';
+import { generateFormalDocumentMarkdown } from '../utils/exportDocument';
 import type { DocumentRecord, Version } from '../types';
 
 interface VersionInspectorProps {
@@ -13,6 +14,22 @@ interface VersionInspectorProps {
 }
 
 export function VersionInspector({ doc, version, parent, onRestore }: VersionInspectorProps) {
+  const [downloaded, setDownloaded] = useState(false);
+
+  function handleDownload() {
+    const content = generateFormalDocumentMarkdown(doc, version);
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${doc.id}-${version.label.toLowerCase()}-verified.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 2500);
+  }
+
   return (
     <section
       aria-labelledby="inspector-heading"
@@ -34,19 +51,35 @@ export function VersionInspector({ doc, version, parent, onRestore }: VersionIns
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={handleDownload}
+            title="Download verified snapshot"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-orange-50 hover:border-orange-200">
+            {downloaded ? (
+              <>
+                <CheckIcon className="h-4 w-4 text-emerald-600" />
+                <span className="text-emerald-700">Downloaded</span>
+              </>
+            ) : (
+              <>
+                <DownloadIcon className="h-4 w-4 text-ink-muted" />
+                <span>Download</span>
+              </>
+            )}
+          </button>
+          <button
+            type="button"
             data-testid="version-restore"
             onClick={onRestore}
-            className="inline-flex items-center gap-2 rounded-lg border border-line bg-canvas px-3.5 py-2 text-sm font-medium text-ink transition-colors duration-150 ease-serene hover:bg-orange-50 hover:border-orange-200">
-            
-            <RotateCcwIcon className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-orange-50 hover:border-orange-200">
+            <RotateCcwIcon className="h-4 w-4 text-ink-muted" />
             Restore
           </button>
           {parent ? (
             <Link
               to={`/documents/${doc.id}/compare/${version.id}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all duration-150 ease-serene hover:from-orange-500 hover:to-amber-500">
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500">
               Open comparison
-              <ArrowUpRightIcon className="h-4 w-4" aria-hidden="true" />
+              <ArrowUpRightIcon className="h-4 w-4" />
             </Link>
           ) : null}
         </div>

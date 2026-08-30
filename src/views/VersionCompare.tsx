@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeftIcon, GitBranchIcon, ShieldCheckIcon } from 'lucide-react';
 import { AIExplanationPanel } from '../components/AIExplanationPanel';
+import { AIProposalCard } from '../components/AIProposalCard';
 import { DiffViewer } from '../components/DiffViewer';
 import { ErrorState } from '../components/ErrorState';
 import { EvidencePanel } from '../components/EvidencePanel';
@@ -20,6 +21,7 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
   const parent = getParent(doc, version);
   const [changeIndex, setChangeIndex] = useState(0);
   const [status, setStatus] = useState<AIStatus>(aiStatus);
+  const [notice, setNotice] = useState<string | null>(null);
 
   if (!doc || !version || !parent) {
     return (
@@ -30,7 +32,7 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
   }
 
   const change = version.changes[changeIndex] ?? version.changes[0];
-  const proposal = aiProposals.find(
+  const matchingProposal = aiProposals.find(
     (item) => item.documentId === doc.id && item.section === change?.section
   );
 
@@ -74,6 +76,12 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
         </p>
       </header>
 
+      {notice && (
+        <p role="status" className="mt-4 rounded-xl bg-orange-100 border border-orange-200 px-4 py-3 text-sm font-medium text-orange-950">
+          {notice}
+        </p>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Detected changes">
         {version.changes.map((item, index) => (
           <button
@@ -98,6 +106,20 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div className="space-y-6">
           <DiffViewer change={change} fromLabel={parent.label} toLabel={version.label} />
+          
+          {/* AI Proposal Review Card if pending proposal exists */}
+          {matchingProposal && (
+            <AIProposalCard
+              proposal={matchingProposal}
+              onApprove={(id) => {
+                setNotice(`AI Proposal #${id} approved by Akhand Pratap. Authoritative version recorded.`);
+              }}
+              onReject={(id) => {
+                setNotice(`AI Proposal #${id} rejected. History remains unchanged.`);
+              }}
+            />
+          )}
+
           <AIExplanationPanel
             status={explanationFor(change) ? status : 'unavailable'}
             explanation={explanationFor(change)}

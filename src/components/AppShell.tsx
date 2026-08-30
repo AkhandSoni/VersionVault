@@ -28,12 +28,21 @@ export function AppShell() {
     <div className="min-h-full w-full bg-canvas">
       <TopBar onOpenSearch={() => setSearchOpen(true)} onToggleNav={() => setNavOpen((open) => !open)} />
 
-      <div className="mx-auto flex w-full max-w-[1600px]">
+      <div className="mx-auto flex w-full max-w-[1600px] relative">
+        {/* Mobile Navigation Drawer Backdrop */}
+        {navOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-ink/30 backdrop-blur-xs lg:hidden"
+            onClick={() => setNavOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         <aside
           className={`${
-          navOpen ? 'block' : 'hidden'} w-full shrink-0 border-b border-line bg-surface lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:w-60 lg:border-b-0 lg:border-r`
-          }>
-          
+            navOpen ? 'fixed inset-y-0 left-0 z-30 w-72 shadow-lift block' : 'hidden'
+          } shrink-0 border-r border-line bg-surface lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:w-60 lg:shadow-none`}
+        >
           <SideNav />
         </aside>
 
@@ -43,6 +52,6 @@ export function AppShell() {
       </div>
 
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
-    </div>);
-
+    </div>
+  );
 }

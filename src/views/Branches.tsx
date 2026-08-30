@@ -1,21 +1,61 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { GitBranchIcon } from 'lucide-react';
-import { documents } from '../data/documents';
+import { GitBranchIcon, PlusIcon } from 'lucide-react';
+import { documents as initialDocuments } from '../data/documents';
 import { relativeTime, versionsOnBranch } from '../utils/documents';
+import { CreateBranchDialog } from '../components/CreateBranchDialog';
+import type { DocumentRecord } from '../types';
 
 export function Branches() {
-  const branched = documents.filter((doc) => doc.branches.length > 1);
+  const [docList, setDocList] = useState<DocumentRecord[]>(initialDocuments);
+  const [selectedDoc, setSelectedDoc] = useState<DocumentRecord>(initialDocuments[0]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const branched = docList.filter((doc) => doc.branches.length > 1);
+
+  function handleCreateBranch(branchName: string) {
+    if (!selectedDoc) return;
+    const updated = docList.map((d) => {
+      if (d.id === selectedDoc.id) {
+        return {
+          ...d,
+          branches: d.branches.includes(branchName) ? d.branches : [...d.branches, branchName],
+        };
+      }
+      return d;
+    });
+    setDocList(updated);
+    setNotice(`Branch "${branchName}" created on document "${selectedDoc.title}".`);
+  }
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header>
-        <p className="label-eyebrow text-orange-800">Branches</p>
-        <h1 className="mt-1 font-serif text-3xl font-semibold text-ink">Parallel lines of work</h1>
-        <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-muted">
-          A branch explores an alternative without touching the recorded history on main.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="label-eyebrow text-orange-800 font-semibold">Branches</p>
+          <h1 className="mt-1 font-serif text-3xl font-semibold text-ink">Parallel lines of work</h1>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-muted">
+            A branch explores an alternative without touching the recorded history on main.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedDoc(docList[0]);
+            setCreateOpen(true);
+          }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:from-orange-500 hover:to-amber-500 transition-all">
+          <PlusIcon className="h-4 w-4" />
+          Create Branch
+        </button>
       </header>
+
+      {notice && (
+        <p role="status" className="mt-6 rounded-xl bg-orange-100 border border-orange-200 px-4 py-3 text-sm font-medium text-orange-950">
+          {notice}
+        </p>
+      )}
 
       <div className="mt-8 space-y-6">
         {branched.map((doc) => (
@@ -25,11 +65,22 @@ export function Branches() {
                 <p className="label-eyebrow text-ink-muted">{doc.reference}</p>
                 <h2 className="mt-0.5 font-serif text-lg font-semibold text-ink">{doc.title}</h2>
               </div>
-              <Link
-                to={`/documents/${doc.id}`}
-                className="text-sm font-medium text-orange-700 hover:text-orange-800 underline decoration-orange-300 underline-offset-4">
-                Open workspace
-              </Link>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDoc(doc);
+                    setCreateOpen(true);
+                  }}
+                  className="text-xs font-semibold text-orange-700 hover:text-orange-900 border border-orange-200 bg-orange-50 px-2.5 py-1 rounded-md">
+                  + New Branch
+                </button>
+                <Link
+                  to={`/documents/${doc.id}`}
+                  className="text-sm font-medium text-ink-muted hover:text-ink underline decoration-line underline-offset-4">
+                  Open workspace
+                </Link>
+              </div>
             </div>
 
             <div className="grid gap-px bg-line sm:grid-cols-2" data-testid="branch-graph">
@@ -78,6 +129,15 @@ export function Branches() {
           </article>
         ))}
       </div>
+
+      {selectedDoc && (
+        <CreateBranchDialog
+          open={createOpen}
+          doc={selectedDoc}
+          onClose={() => setCreateOpen(false)}
+          onCreate={handleCreateBranch}
+        />
+      )}
     </div>
   );
 }
