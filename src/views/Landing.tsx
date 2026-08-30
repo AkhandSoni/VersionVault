@@ -54,7 +54,7 @@ export function Landing() {
               </h1>
               <p className="mt-5 max-w-md text-base leading-relaxed text-ink-soft">
                 VersionVault records each revision as an immutable version. You see exactly what
-                changed, who changed it, and when — before anything interprets it for you.
+                changed, who changed it, and when before anything interprets it for you.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
