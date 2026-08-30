@@ -25,9 +25,9 @@ export function Login() {
       title="Sign in"
       subtitle="Your documents and their full history stay exactly as you left them."
       footer={
-      <>
+        <>
           No account yet?{' '}
-          <Link to="/register" className="text-sage-700 underline decoration-sage-200 underline-offset-4">
+          <Link to="/register" className="font-semibold text-orange-700 underline decoration-orange-300 underline-offset-4 hover:text-orange-900">
             Create one
           </Link>
         </>
@@ -35,7 +35,7 @@ export function Login() {
       
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         <div>
-          <label htmlFor="email" className="label-eyebrow">
+          <label htmlFor="email" className="label-eyebrow text-ink-muted font-medium">
             Work email
           </label>
           <input
@@ -44,12 +44,11 @@ export function Login() {
             value={email}
             autoComplete="email"
             onChange={(event) => setEmail(event.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted" />
-          
+            className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm font-medium text-ink placeholder:text-ink-muted focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
         </div>
 
         <div>
-          <label htmlFor="password" className="label-eyebrow">
+          <label htmlFor="password" className="label-eyebrow text-ink-muted font-medium">
             Password
           </label>
           <input
@@ -60,24 +59,22 @@ export function Login() {
             aria-invalid={error ? 'true' : undefined}
             aria-describedby={error ? 'login-error' : undefined}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink" />
-          
+            className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm font-medium text-ink focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
         </div>
 
-        {error ?
-        <p id="login-error" role="alert" className="rounded-lg bg-clay-50 px-3.5 py-2.5 text-xs text-clay-700">
+        {error ? (
+          <p id="login-error" role="alert" className="rounded-lg bg-orange-100 border border-orange-200 px-3.5 py-2.5 text-xs font-semibold text-orange-950">
             {error}
-          </p> :
-        null}
+          </p>
+        ) : null}
 
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-sage-600 px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 ease-serene hover:bg-sage-700 disabled:bg-sage-300">
-          
+          className="w-full rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2.5 text-sm font-medium text-white shadow-xs transition-all duration-150 ease-serene hover:from-orange-500 hover:to-amber-500 disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500">
           {pending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
-    </AuthLayout>);
-
+    </AuthLayout>
+  );
 }
