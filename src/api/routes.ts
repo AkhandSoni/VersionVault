@@ -1,16 +1,17 @@
 import { Router, Request, Response } from "express";
-import { computeStructuredDiff } from "../engine/diff.js";
-import { computeDocumentBlame, buildProvenanceRecord } from "../engine/provenance.js";
-import { explainStructuredChanges } from "../ai/explainer.js";
-import { answerHistoryQuestion } from "../ai/historyQa.js";
-import { OpenRouterGateway } from "../ai/gateway.js";
-import { ProposalManager } from "../ai/proposals.js";
-import { Version } from "../types/contracts.js";
+import crypto from "crypto";
+import { computeStructuredDiff } from "../engine/diff";
+import { computeDocumentBlame } from "../engine/provenance";
+import { explainStructuredChanges } from "../ai/explainer";
+import { answerHistoryQuestion } from "../ai/historyQa";
+import { GroqGateway } from "../ai/gateway";
+import { ProposalManager } from "../ai/proposals";
+import { StructuredChange, Version } from "../types/contracts";
 
 export function createRouter(
   versionStore: Map<string, { version: Version; content: string }>,
   proposalManager: ProposalManager,
-  gateway: OpenRouterGateway
+  gateway: GroqGateway
 ): Router {
   const router = Router();
 
@@ -131,7 +132,6 @@ export function createRouter(
         // Version creation stub implementation
         const vNumber = currentHead.versionNumber + 1;
         const vId = `v_${documentId}_${vNumber}`;
-        const crypto = require("crypto");
         const hash = crypto.createHash("sha256").update(content).digest("hex");
         const newVer: Version = {
           id: vId,
@@ -166,9 +166,9 @@ export function createRouter(
     const { documentId, question } = req.body;
 
     const docVersions: Version[] = [];
-    const allChanges: any[] = [];
+    const allChanges: StructuredChange[] = [];
 
-    for (const [vId, entry] of versionStore.entries()) {
+    for (const entry of versionStore.values()) {
       if (entry.version.documentId === documentId) {
         docVersions.push(entry.version);
       }

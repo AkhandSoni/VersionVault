@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createDocument, listDocuments } from '@/services/document.service';
 import { toApiError } from '@/lib/errors';
 import { validatePagination } from '@/lib/validation';
+import { validateUuid } from '@/lib/validation';
+import { CreateDocumentRequestSchema, parseJson } from '@/lib/schemas';
 
 // GET  /api/v1/documents — List authorized documents
 export async function GET(request: NextRequest) {
@@ -18,6 +20,7 @@ export async function GET(request: NextRequest) {
     if (!tenantId) {
       return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'tenantId query parameter is required' }, { status: 400 });
     }
+    validateUuid(tenantId, 'tenantId');
 
     const { page, pageSize } = validatePagination(
       url.searchParams.get('page') ?? 1,
@@ -41,11 +44,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const doc = await createDocument(user.id, {
-      title: body.title,
-      tenantId: body.tenantId,
-    });
+    const body = await parseJson(request, CreateDocumentRequestSchema);
+    const doc = await createDocument(user.id, body);
 
     return NextResponse.json(doc, { status: 201 });
   } catch (err) {

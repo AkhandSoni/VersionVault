@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getDocument } from '@/services/document.service';
-import { computeDiff } from '@/services/diff.service';
+import { getVersion } from '@/services/version.service';
+import { computeDiff, storeStructuredChanges } from '@/services/diff.service';
 import { toApiError } from '@/lib/errors';
 
 // GET /api/v1/versions/:versionId/diff/:targetVersionId — Deterministic diff
@@ -17,19 +17,18 @@ export async function GET(
       return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
     }
 
-    // Verify authorization via the base version's document
-    const serviceSupabase = await (await import('@/lib/supabase/server')).createServiceClient();
-    const { data: baseVer } = await serviceSupabase
-      .from('versions')
-      .select('document_id')
-      .eq('id', baseVersionId)
-      .single();
+    const baseVersion = await getVersion(user.id, baseVersionId);
+    const targetVersion = await getVersion(user.id, targetVersionId);
 
-    if (baseVer) {
-      await getDocument(user.id, baseVer.document_id);
+    if (baseVersion?.documentId !== targetVersion?.documentId) {
+      return NextResponse.json(
+        { error: 'VALIDATION_ERROR', message: 'Versions must belong to the same document' },
+        { status: 400 },
+      );
     }
 
     const changes = await computeDiff(baseVersionId, targetVersionId);
+    await storeStructuredChanges(changes);
     const materialChanges = changes.filter((c) => c.severity === 'HIGH' || c.severity === 'MEDIUM');
 
     return NextResponse.json({
@@ -37,6 +36,7 @@ export async function GET(
       targetVersionId,
       changes,
       materialChangeCount: materialChanges.length,
+      extractionBacked: changes.length > 0,
     });
   } catch (err) {
     const apiError = toApiError(err);

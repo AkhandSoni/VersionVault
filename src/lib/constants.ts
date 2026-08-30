@@ -22,6 +22,9 @@ export const UPLOAD_LIMITS = {
   /** Maximum expansion ratio for archives (compressed → uncompressed) */
   MAX_ARCHIVE_EXPANSION: 10,
 
+  /** Maximum nesting depth for archive entry paths */
+  MAX_ARCHIVE_NESTING: 5,
+
   /** Maximum processing time in milliseconds (5 minutes) */
   MAX_PROCESSING_TIME_MS: 5 * 60 * 1000,
 
@@ -36,8 +39,21 @@ export const ACCEPTED_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
   'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+  'application/vnd.ms-powerpoint', // .ppt
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls
+  'application/vnd.oasis.opendocument.text', // .odt
+  'application/vnd.oasis.opendocument.presentation', // .odp
+  'application/vnd.oasis.opendocument.spreadsheet', // .ods
+  'application/rtf', // .rtf
   'text/plain',
   'text/markdown',
+  'text/csv',
+  'text/tab-separated-values',
+  'application/json',
+  'application/xml',
+  'text/html',
 ] as const;
 
 export type AcceptedMimeType = (typeof ACCEPTED_MIME_TYPES)[number];

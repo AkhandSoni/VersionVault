@@ -1,6 +1,6 @@
-import { StructuredChange } from "../types/contracts.js";
-import { normalizeDocument, computeSHA256 } from "./normalization.js";
-import { classifyChange } from "./materiality.js";
+import { StructuredChange } from "../types/contracts";
+import { normalizeDocument, computeSHA256 } from "./normalization";
+import { classifyChange } from "./materiality";
 import { diffLines } from "diff";
 
 export interface ComputeDiffResult {

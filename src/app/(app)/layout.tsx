@@ -1,15 +1,10 @@
-// ============================================================
-// App Layout — Main application shell with sidebar
-// ============================================================
-
-// TODO: Wrap with auth guard — redirect to /login if unauthenticated
-
-import { AppShell } from '@/components/layout/AppShell';
+// The canonical client shell is rendered by NextVaultApp. Keeping this
+// segment layout transparent avoids maintaining a second, divergent shell.
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell>{children}</AppShell>;
+  return children;
 }

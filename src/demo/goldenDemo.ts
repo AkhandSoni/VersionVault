@@ -1,10 +1,10 @@
-import { Version, Document } from "../types/contracts.js";
-import { normalizeDocument, computeSHA256 } from "../engine/normalization.js";
-import { computeStructuredDiff } from "../engine/diff.js";
-import { buildProvenanceRecord, computeDocumentBlame } from "../engine/provenance.js";
-import { OpenRouterGateway } from "../ai/gateway.js";
-import { explainStructuredChanges } from "../ai/explainer.js";
-import { ProposalManager } from "../ai/proposals.js";
+import { Version, Document } from "../types/contracts";
+import { normalizeDocument } from "../engine/normalization";
+import { computeStructuredDiff } from "../engine/diff";
+import { buildProvenanceRecord, computeDocumentBlame } from "../engine/provenance";
+import { GroqGateway } from "../ai/gateway";
+import { explainStructuredChanges } from "../ai/explainer";
+import { ProposalManager } from "../ai/proposals";
 
 export async function runGoldenDemo() {
   console.log("============================================================");
@@ -23,7 +23,7 @@ export async function runGoldenDemo() {
 
   const versionStore = new Map<string, { version: Version; content: string }>();
   const proposalManager = new ProposalManager();
-  const gateway = new OpenRouterGateway(); // Will fallback gracefully if no key set
+  const gateway = new GroqGateway(); // Will fallback gracefully if no key set
 
   // ------------------------------------------------------------------------
   // STEP 1: Create V1 (Base Immutable Snapshot)

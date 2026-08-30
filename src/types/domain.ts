@@ -10,6 +10,7 @@
 export type User = {
   id: string;
   email: string;
+  fullName?: string;
   createdAt: string;
 };
 
@@ -36,6 +37,8 @@ export type Document = {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  /** Effective access role for the authenticated caller, when known. */
+  accessRole?: Membership['role'];
 };
 
 export type Version = {
@@ -127,12 +130,15 @@ export type ActivityEvent = {
 
 export type ActivityEventType =
   | 'DOCUMENT_CREATED'
+  | 'DOCUMENT_DELETED'
   | 'VERSION_CREATED'
   | 'VERSION_READY'
   | 'VERSION_FAILED'
   | 'CHANGE_DETECTED'
   | 'BRANCH_CREATED'
   | 'AI_PROPOSAL_CREATED'
+  | 'AI_PROPOSAL_APPROVED'
+  | 'AI_PROPOSAL_REJECTED'
   | 'HUMAN_APPROVAL_RECORDED'
   | 'VERSION_RESTORED'
   | 'PERMISSION_CHANGED'

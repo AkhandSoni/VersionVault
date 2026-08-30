@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getDocument } from '@/services/document.service';
 import { answerHistoryQuestion } from '@/services/ai.service';
 import { toApiError } from '@/lib/errors';
+import { HistoryQuestionSchema, parseJson } from '@/lib/schemas';
 
 // POST /api/v1/documents/:documentId/qa — Grounded History Q&A
 export async function POST(
@@ -22,14 +23,11 @@ export async function POST(
       return NextResponse.json({ error: 'NOT_FOUND', message: 'Document not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    if (!body.question?.trim()) {
-      return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'question is required' }, { status: 400 });
-    }
+    const body = await parseJson(request, HistoryQuestionSchema);
 
     const answer = await answerHistoryQuestion(
       documentId,
-      body.question.trim(),
+      body.question,
       user.id,
     );
 

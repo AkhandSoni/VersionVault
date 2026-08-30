@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { listCollaborators, addCollaborator } from '@/services/collaborator.service';
 import { toApiError } from '@/lib/errors';
+import { AddCollaboratorRequestSchema, parseJson } from '@/lib/schemas';
 
 // GET /api/v1/documents/:documentId/collaborators — List collaborators
 export async function GET(
@@ -37,7 +38,7 @@ export async function POST(
       return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Not authenticated' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await parseJson(request, AddCollaboratorRequestSchema);
     const collaborator = await addCollaborator(user.id, documentId, body.userId, body.role);
     return NextResponse.json(collaborator, { status: 201 });
   } catch (err) {

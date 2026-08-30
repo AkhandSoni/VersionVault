@@ -1,10 +1,11 @@
 import React from 'react';
-import { GitBranchIcon, SparklesIcon } from 'lucide-react';
+import { GitBranchIcon } from 'lucide-react';
 import { relativeTime } from '../utils/documents';
 import type { DocumentRecord, Version, VersionStatus } from '../types';
 
 interface VersionTimelineProps {
   doc: DocumentRecord;
+  branchName?: string;
   selectedVersionId: string;
   onSelect: (versionId: string) => void;
 }
@@ -20,8 +21,11 @@ const statusLabel: Record<VersionStatus, string> = {
   READY: 'Ready'
 };
 
-export function VersionTimeline({ doc, selectedVersionId, onSelect }: VersionTimelineProps) {
-  const versions = [...doc.versions].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+export function VersionTimeline({ doc, branchName, selectedVersionId, onSelect }: VersionTimelineProps) {
+  const branch = doc.branchDetails?.find((item) => item.name === branchName);
+  const versions = [...doc.versions]
+    .filter((version) => !branchName || version.branch === branchName || version.id === branch?.baseVersionId)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   return (
     <section

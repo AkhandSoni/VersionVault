@@ -28,6 +28,7 @@ export type ApiError = {
 export type RegisterRequest = {
   email: string;
   password: string;
+  fullName?: string;
 };
 
 export type LoginRequest = {
@@ -39,6 +40,7 @@ export type AuthResponse = {
   user: {
     id: string;
     email: string;
+    fullName?: string;
   };
 };
 

@@ -6,6 +6,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { StorageError, ValidationError } from '@/lib/errors';
 import { STORAGE_BUCKET, SIGNED_URL_EXPIRY_SECONDS } from '@/lib/constants';
+import { validateUuid } from '@/lib/validation';
 
 /**
  * Upload an object to the private Supabase Storage bucket.
@@ -18,18 +19,26 @@ export async function uploadObject(
   objectId: string,
   data: Buffer,
   mimeType: string,
+  fileName?: string,
 ): Promise<{ path: string }> {
-  // Validate path components against path traversal
-  if (
-    tenantId.includes('..') ||
-    documentId.includes('..') ||
-    versionId.includes('..') ||
-    objectId.includes('..')
-  ) {
-    throw new ValidationError('Invalid path component for storage upload');
+  for (const [value, field] of [
+    [tenantId, 'tenantId'],
+    [documentId, 'documentId'],
+    [versionId, 'versionId'],
+    [objectId, 'objectId'],
+  ] as const) {
+    try {
+      validateUuid(value, field);
+    } catch {
+      throw new ValidationError('Invalid path component for storage upload');
+    }
   }
 
-  const storagePath = `${tenantId}/${documentId}/${versionId}/${objectId}`;
+  // Keep the extension in the private object path so unknown/custom formats
+  // can be downloaded with their original type even when their MIME is
+  // reported as application/octet-stream.
+  const originalExtension = fileName?.match(/(\.[a-z0-9]{1,16})$/i)?.[1].toLowerCase() ?? '';
+  const storagePath = `${tenantId}/${documentId}/${versionId}/${objectId}${originalExtension}`;
   const supabase = await createServiceClient();
 
   const { error } = await supabase.storage
@@ -76,5 +85,19 @@ export async function deleteObject(path: string): Promise<void> {
 
   if (error) {
     throw new StorageError(`Failed to delete object from storage: ${error.message}`);
+  }
+}
+
+/**
+ * Delete multiple objects from private storage.
+ */
+export async function deleteObjects(paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+
+  const supabase = await createServiceClient();
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).remove(paths);
+
+  if (error) {
+    throw new StorageError(`Failed to delete files from storage: ${error.message}`);
   }
 }

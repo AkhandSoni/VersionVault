@@ -4,8 +4,8 @@ import {
   Version,
   LineBlame,
   SectionBlame,
-} from "../types/contracts.js";
-import { normalizeDocument, computeSHA256 } from "./normalization.js";
+} from "../types/contracts";
+import { normalizeDocument, computeSHA256 } from "./normalization";
 
 /**
  * Builds cryptographic provenance record for a material change.

@@ -24,7 +24,7 @@ export function AIExplanationPanel({
   return (
     <section
       aria-labelledby="ai-heading"
-      data-testid="ai-explanation-panel"
+      data-testid="ai-explanation"
       className="rounded-2xl border border-dashed border-orange-300 bg-orange-50/30 px-6 py-5 shadow-xs">
       
       <div className="flex items-center gap-2">

@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { login } from '@/services/auth.service';
 import { toApiError } from '@/lib/errors';
+import { LoginRequestSchema, parseJson } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const result = await login({
-      email: body.email,
-      password: body.password,
-    });
+    const body = await parseJson(request, LoginRequestSchema);
+    const result = await login(body);
 
     return NextResponse.json(
       {

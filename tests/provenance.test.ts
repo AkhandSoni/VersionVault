@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildProvenanceRecord, computeDocumentBlame } from "../src/engine/provenance.js";
+import { buildProvenanceRecord } from "../src/engine/provenance.js";
 import { Version, StructuredChange } from "../src/types/contracts.js";
 import { normalizeDocument } from "../src/engine/normalization.js";
 

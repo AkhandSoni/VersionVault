@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ActivityIcon, FileTextIcon, GitBranchIcon, LayoutGridIcon, SettingsIcon } from 'lucide-react';
-import { documents } from '../data/documents';
+import { ActivityIcon, FileTextIcon, GitBranchIcon, LayoutGridIcon } from 'lucide-react';
+import { useVaultData } from '../lib/vault-data';
 
 const primaryLinks = [
   { to: '/dashboard', label: 'Overview', icon: LayoutGridIcon },
@@ -20,6 +20,8 @@ function linkClass(isActive: boolean): string {
 }
 
 export function SideNav() {
+  const { documents } = useVaultData();
+
   return (
     <nav aria-label="Primary" className="flex h-full flex-col gap-7 px-4 py-6">
       <ul className="space-y-1">
@@ -52,7 +54,7 @@ export function SideNav() {
                 className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}
                 title={doc.title}
               >
-                {({ isActive }) => (
+                {() => (
                   <>
                     <span className="truncate">{doc.reference}</span>
                     {doc.reviewNeeded ? (
@@ -67,20 +69,6 @@ export function SideNav() {
             </li>
           ))}
         </ul>
-      </div>
-
-      <div className="mt-auto pt-4 border-t border-line/60">
-        <NavLink to="/settings" className={({ isActive }: { isActive: boolean }) => linkClass(isActive)}>
-          {({ isActive }) => (
-            <>
-              <SettingsIcon
-                className={`h-4 w-4 ${isActive ? 'text-orange-600' : 'text-ink-muted'}`}
-                aria-hidden="true"
-              />
-              Settings
-            </>
-          )}
-        </NavLink>
       </div>
     </nav>
   );
