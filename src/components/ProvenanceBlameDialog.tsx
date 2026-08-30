@@ -57,6 +57,7 @@ export function ProvenanceBlameDialog({ open, doc, version, onClose }: Provenanc
     <AnimatePresence>
       {open ? (
         <motion.div
+          data-testid="blame-panel"
           className="fixed inset-0 z-50 flex items-center justify-center px-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

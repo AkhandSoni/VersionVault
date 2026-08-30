@@ -1,11 +1,11 @@
-export interface OpenRouterConfig {
+export interface GroqConfig {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
   timeoutMs?: number;
 }
 
-type OpenRouterChatResponse = {
+type GroqChatResponse = {
   choices?: Array<{
     message?: {
       content?: string;
@@ -17,23 +17,23 @@ export const DEFAULT_AI_UNAVAILABLE_MSG =
   "AI is not accessible at this moment, kindly try again later";
 
 /**
- * OpenRouter AI Gateway Adapter.
- * Handles server-side communication with OpenRouter API.
+ * Groq AI Gateway Adapter.
+ * Handles server-side communication with the Groq API.
  * Enforces strict timeouts, prompt isolation, and fail-safe error handling.
  */
-export class OpenRouterGateway {
+export class GroqGateway {
   private apiKey: string;
   private baseUrl: string;
   private model: string;
   private timeoutMs: number;
 
-  constructor(config: OpenRouterConfig = {}) {
-    this.apiKey = config.apiKey || process.env.OPENROUTER_API_KEY || "";
-    this.baseUrl = config.baseUrl || "https://openrouter.ai/api/v1";
+  constructor(config: GroqConfig = {}) {
+    this.apiKey = config.apiKey || process.env.GROQ_API_KEY || "";
+    this.baseUrl = config.baseUrl || "https://api.groq.com/openai/v1";
     this.model =
       config.model ||
-      process.env.OPENROUTER_MODEL ||
-      "meta-llama/llama-3.1-70b-instruct";
+      process.env.GROQ_MODEL ||
+      "openai/gpt-oss-20b";
     this.timeoutMs = config.timeoutMs || 8000;
   }
 
@@ -42,7 +42,7 @@ export class OpenRouterGateway {
   }
 
   /**
-   * Generates a grounded AI completion using OpenRouter.
+   * Generates a grounded AI completion using Groq.
    * If API key is missing, call fails, or times out, safely returns degraded result.
    */
   async generateCompletion(
@@ -64,8 +64,6 @@ export class OpenRouterGateway {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
-          "HTTP-Referer": "https://versionvault.app",
-          "X-Title": "VersionVault Document Intelligence",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -88,7 +86,7 @@ export class OpenRouterGateway {
         };
       }
 
-      const data = (await response.json()) as OpenRouterChatResponse;
+      const data = (await response.json()) as GroqChatResponse;
       const content = data?.choices?.[0]?.message?.content;
 
       if (!content) {

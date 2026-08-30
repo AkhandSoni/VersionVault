@@ -97,9 +97,9 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
   const materialCount = version.changes.filter((item) => item.material).length;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl" data-testid="page-version-compare">
       <Link
-        to={`/documents/${doc.id}`}
+        to={`/documents/${doc.id}?branch=${encodeURIComponent(version.branch)}`}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors duration-150 ease-serene hover:text-orange-600">
         <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
         {doc.title}

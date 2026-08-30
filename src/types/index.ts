@@ -47,6 +47,7 @@ export interface Version {
   timestamp: string;
   status: VersionStatus;
   hash: string;
+  mimeType?: string;
   source: string;
   summary: string;
   changes: StructuredChange[];
@@ -58,12 +59,20 @@ export interface DocumentRecord {
   reference: string;
   role: Role;
   branches: string[];
+  branchDetails?: DocumentBranch[];
   currentVersionId: string;
   updatedAt: string;
   versionCount: number;
   reviewNeeded: boolean;
   integrity: 'verified' | 'unverified';
   versions: Version[];
+}
+
+export interface DocumentBranch {
+  id: string;
+  name: string;
+  headVersionId: string | null;
+  baseVersionId: string | null;
 }
 
 export interface AIExplanation {
@@ -89,10 +98,14 @@ export interface AIProposal {
 
 export type ActivityType =
   | 'DOCUMENT_CREATED'
+  | 'DOCUMENT_DELETED'
   | 'VERSION_CREATED'
+  | 'VERSION_READY'
+  | 'VERSION_FAILED'
   | 'CHANGE_DETECTED'
   | 'BRANCH_CREATED'
   | 'AI_PROPOSAL_CREATED'
+  | 'AI_PROPOSAL_REJECTED'
   | 'HUMAN_APPROVED'
   | 'VERSION_RESTORED'
   | 'PERMISSION_CHANGED'

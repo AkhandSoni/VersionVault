@@ -21,8 +21,9 @@ version: Version | undefined)
 }
 
 export function versionsOnBranch(doc: DocumentRecord, branch: string): Version[] {
+  const branchDetail = doc.branchDetails?.find((item) => item.name === branch);
   return doc.versions.
-  filter((version) => version.branch === branch).
+  filter((version) => version.branch === branch || version.id === branchDetail?.baseVersionId).
   sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
 

@@ -13,7 +13,8 @@ interface DocumentsProps {
 }
 
 export function Documents({ documentView = 'list' }: DocumentsProps) {
-  const { documents, loading, error, createDocument, uploadRevision, refresh } = useVaultData();
+  const { documents, loading, error, createDocument, uploadRevision, refresh, memberships, tenantId } = useVaultData();
+  const canCreate = memberships.find((membership) => membership.tenantId === tenantId)?.role !== 'VIEWER';
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedDocId, setSelectedDocId] = useState('');
@@ -26,9 +27,9 @@ export function Documents({ documentView = 'list' }: DocumentsProps) {
     setNotice(`Document "${title}" created in your authorized workspace.`);
   }
 
-  async function handleUpload(file: File, message?: string) {
+  async function handleUpload(file: File, message?: string, idempotencyKey?: string) {
     if (!activeDocumentId) throw new Error('Choose a document before uploading a revision.');
-    await uploadRevision(activeDocumentId, file, message);
+    await uploadRevision(activeDocumentId, file, message, undefined, idempotencyKey);
     const doc = documents.find((item) => item.id === activeDocumentId);
     setNotice(`Revision uploaded${doc ? ` to "${doc.title}"` : ''}. Cryptographic hash recorded.`);
   }
@@ -54,6 +55,7 @@ export function Documents({ documentView = 'list' }: DocumentsProps) {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
+          disabled={!canCreate}
           className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:from-orange-500 hover:to-amber-500 transition-all">
           <PlusIcon className="h-4 w-4" />
           New Document
@@ -97,7 +99,7 @@ export function Documents({ documentView = 'list' }: DocumentsProps) {
         </div>
       )}
 
-      <CreateDocumentDialog
+        <CreateDocumentDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreate={handleCreate}

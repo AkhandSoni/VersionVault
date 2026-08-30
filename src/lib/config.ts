@@ -22,6 +22,22 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+/** Keep OAuth continuation URLs on this application origin. */
+export function getSafeAppRedirect(value: string | null | undefined, fallback = '/dashboard'): URL {
+  const appUrl = new URL(APP_URL);
+  const fallbackUrl = new URL(fallback, appUrl);
+
+  if (!value || value.startsWith('//')) return fallbackUrl;
+
+  try {
+    const candidate = new URL(value, appUrl);
+    if (candidate.origin !== appUrl.origin) return fallbackUrl;
+    return candidate;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
 // ----------------------------------------------------------------
 // Server-only — never expose to browser
 // Call requireEnv() only on the server (Route Handlers, Server Actions)
@@ -29,8 +45,8 @@ export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 export function getServerConfig() {
   return {
     supabaseServiceRoleKey: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
-    openRouterApiKey: requireEnv('OPENROUTER_API_KEY'),
-    openRouterModel: requireEnv('OPENROUTER_MODEL'),
+    groqApiKey: requireEnv('GROQ_API_KEY'),
+    groqModel: process.env.GROQ_MODEL ?? 'openai/gpt-oss-20b',
     redisUrl: process.env.REDIS_URL, // optional — only if queue is enabled
   };
 }

@@ -6,11 +6,14 @@ import type { Version } from '../types';
 interface RestoreDialogProps {
   open: boolean;
   version?: Version;
+  branchName?: string;
+  restoring?: boolean;
+  error?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-export function RestoreDialog({ open, version, onCancel, onConfirm }: RestoreDialogProps) {
+export function RestoreDialog({ open, version, branchName, restoring = false, error, onCancel, onConfirm }: RestoreDialogProps) {
   return (
     <AnimatePresence>
       {open && version ? (
@@ -47,16 +50,23 @@ export function RestoreDialog({ open, version, onCancel, onConfirm }: RestoreDia
             <div className="mt-4 flex gap-2.5 rounded-xl bg-orange-50/70 border border-orange-200/80 px-4 py-3">
               <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" aria-hidden="true" />
               <p className="text-xs leading-relaxed text-orange-950 font-medium">
-                The restored content becomes the newest version on <span className="font-mono">{version.branch}</span>, with{' '}
+                The restored content becomes the newest version on <span className="font-mono">{branchName || version.branch}</span>, with{' '}
                 <span className="font-mono">{version.label}</span> recorded as its source parent.
               </p>
-            </div>
+          </div>
+
+            {error ? (
+              <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-medium text-rose-800" role="alert">
+                {error}
+              </p>
+            ) : null}
 
             <div className="mt-6 flex justify-end gap-3 pt-3 border-t border-line">
               <button
                 type="button"
                 data-testid="restore-cancel"
                 onClick={onCancel}
+                disabled={restoring}
                 className="rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-canvas">
                 Cancel
               </button>
@@ -64,9 +74,10 @@ export function RestoreDialog({ open, version, onCancel, onConfirm }: RestoreDia
                 type="button"
                 data-testid="restore-confirm"
                 onClick={onConfirm}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500">
+                disabled={restoring}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500 disabled:cursor-wait disabled:opacity-60">
                 <RotateCcwIcon className="h-4 w-4" />
-                Create new version
+                {restoring ? 'Restoring…' : 'Create new version'}
               </button>
             </div>
           </motion.div>

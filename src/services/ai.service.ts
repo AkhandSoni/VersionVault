@@ -1,20 +1,51 @@
 // ============================================================
 // VersionVault — AI Service (Person 2)
-// Server-only — uses OpenRouter with graceful fallback.
+// Server-only — uses Groq with graceful fallback.
 // ============================================================
 
 import type { AIExplanation, AIProposal } from '@/types/domain';
-import { OpenRouterGateway } from '../ai/gateway';
+import { GroqGateway } from '../ai/gateway';
 import { explainStructuredChanges } from '../ai/explainer';
 import { ProposalManager } from '../ai/proposals';
 import { answerHistoryQuestion as answerHistoryQuestionEngine } from '../ai/historyQa';
-import { computeDiff } from './diff.service';
+import { computeDiff, getStoredVersionContent } from './diff.service';
+import { createServiceClient } from '@/lib/supabase/server';
+import { ConflictError, NotFoundError } from '@/lib/errors';
+import { listVersions, getVersion, createVersion, downloadVersionContent } from './version.service';
+import { getDocument } from './document.service';
+import { logEvent } from './activity.service';
+import { extractDocumentText, getVersionTextContent, getVersionTextContents, storeVersionText } from './extraction.service';
+import { inferMimeType } from '@/lib/validation';
+
+type StoredProposal = AIProposal & {
+  branchId: string;
+  rationale?: string;
+  actorId?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+};
+
+type ProposalRow = {
+  id: string;
+  document_id: string;
+  branch_id: string;
+  source_version_id: string;
+  agent_id: string | null;
+  actor_id: string | null;
+  task_description: string | null;
+  proposed_content: string | null;
+  rationale: string | null;
+  approval_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approved_by: string | null;
+  approved_at: string | null;
+  resulting_version_id: string | null;
+  created_at: string;
+};
 
 // Shared service singletons
-const gateway = new OpenRouterGateway();
+const gateway = new GroqGateway();
 const proposalManager = new ProposalManager();
 
-export function getAIServiceGateway(): OpenRouterGateway {
+export function getAIServiceGateway(): GroqGateway {
   return gateway;
 }
 
@@ -29,13 +60,37 @@ export async function getExplanation(
   baseVersionId: string,
   targetVersionId: string,
   baseContentOverride?: string,
-  targetContentOverride?: string
+  targetContentOverride?: string,
+  userId?: string,
 ): Promise<AIExplanation> {
+  let baseContent = baseContentOverride ?? (await getVersionTextContent(baseVersionId)) ?? getStoredVersionContent(baseVersionId);
+  let targetContent = targetContentOverride ?? (await getVersionTextContent(targetVersionId)) ?? getStoredVersionContent(targetVersionId);
+
+  if (userId && baseContent === undefined) {
+    baseContent = await recoverVersionText(userId, baseVersionId);
+  }
+  if (userId && targetContent === undefined) {
+    targetContent = await recoverVersionText(userId, targetVersionId);
+  }
+
+  if (baseContent === undefined || targetContent === undefined) {
+    return {
+      id: `expl_${baseVersionId}_${targetVersionId}`,
+      baseVersionId,
+      targetVersionId,
+      explanation: 'A content-grounded change summary is unavailable because one or both versions do not have readable extracted text.',
+      affectedAreas: [],
+      status: 'UNAVAILABLE',
+      model: gateway.getModel(),
+      createdAt: new Date().toISOString(),
+    };
+  }
+
   const changes = await computeDiff(
     baseVersionId,
     targetVersionId,
-    baseContentOverride,
-    targetContentOverride
+    baseContent,
+    targetContent,
   );
 
   const result = await explainStructuredChanges(changes, gateway);
@@ -63,30 +118,75 @@ export async function createProposal(
   sourceVersionId: string,
   taskDescription: string,
   agentId: string,
-  proposedContent = ''
+  proposedContent = '',
+  branchId?: string,
+  createdBy?: string,
 ): Promise<AIProposal> {
-  const proposal = proposalManager.createProposal(
-    documentId,
-    'main',
-    sourceVersionId,
-    proposedContent,
-    taskDescription,
-    agentId
-  );
+  const sourceVersion = await getVersionForProposal(sourceVersionId, documentId);
+  const targetBranchId = branchId ?? sourceVersion.branchId;
+  if (targetBranchId !== sourceVersion.branchId) {
+    throw new ConflictError('Proposal branch must match the source version branch');
+  }
+  const proposalId = `prop_${crypto.randomUUID()}`;
+  const supabase = await createServiceClient();
+  const { data: proposal, error } = await supabase
+    .from('ai_proposals')
+    .insert({
+      id: proposalId,
+      document_id: documentId,
+      branch_id: targetBranchId,
+      source_version_id: sourceVersionId,
+      agent_id: agentId,
+      task_description: taskDescription,
+      proposed_content: proposedContent,
+      rationale: taskDescription,
+      actor_type: 'ai_agent',
+      actor_id: agentId,
+      model: gateway.getModel(),
+      approval_status: 'PENDING',
+    })
+    .select('*')
+    .single();
+  if (error || !proposal) {
+    throw new Error(`Failed to create AI proposal: ${error?.message ?? 'No proposal returned'}`);
+  }
+
+  if (createdBy) {
+    const document = await getDocument(createdBy, documentId);
+    if (document) {
+      await logEvent({
+        tenantId: document.tenantId,
+        documentId,
+        actorId: createdBy,
+        actorType: 'human',
+        eventType: 'AI_PROPOSAL_CREATED',
+        metadata: { proposalId: proposal.id, sourceVersionId, agentId },
+      });
+    }
+  }
 
   return {
-    id: proposal.id,
-    documentId: proposal.documentId,
-    sourceVersionId: proposal.sourceVersionId,
-    agentId: proposal.actorId ?? agentId,
-    taskDescription: proposal.rationale ?? taskDescription,
-    proposedContent: proposal.proposedContent,
-    approvalStatus: proposal.status ?? 'PENDING',
-    approvedBy: proposal.approvedBy,
-    approvedAt: proposal.approvedAt,
-    resultingVersionId: proposal.resultingVersionId,
-    createdAt: proposal.createdAt,
+    ...mapProposal(proposal),
   };
+}
+
+export async function listDocumentProposals(userId: string, documentId: string): Promise<AIProposal[]> {
+  await getDocument(userId, documentId);
+  const supabase = await createServiceClient();
+  const { data, error } = await supabase
+    .from('ai_proposals')
+    .select('*')
+    .eq('document_id', documentId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`Failed to list AI proposals: ${error.message}`);
+  return (data ?? []).map(mapProposal);
+}
+
+export async function getDocumentProposal(userId: string, proposalId: string): Promise<AIProposal | null> {
+  const proposal = await getStoredProposal(proposalId);
+  if (!proposal) return null;
+  await getDocument(userId, proposal.documentId);
+  return mapProposal(proposal);
 }
 
 /**
@@ -97,56 +197,77 @@ export async function approveProposal(
   approvedBy: string,
   currentHeadVersionId?: string
 ): Promise<AIProposal> {
-  const proposal = proposalManager.getProposal(proposalId);
+  const proposal = await getStoredProposal(proposalId);
   if (!proposal) {
-    throw new Error(`Proposal ${proposalId} not found`);
+    throw new NotFoundError('Proposal not found');
   }
 
-  // Create authoritative version stub if not provided
-  const headVer = {
-    id: currentHeadVersionId ?? proposal.sourceVersionId,
-    documentId: proposal.documentId,
-    parentVersionId: null,
-    branchId: proposal.branchId,
-    versionNumber: 2,
-    contentHash: 'hash_approved_proposal',
-    storageObjectId: `obj_${proposalId}`,
-    mimeType: 'text/plain',
-    fileSize: proposal.proposedContent.length,
-    createdBy: proposal.actorId ?? 'system',
-    status: 'READY' as const,
-    createdAt: new Date().toISOString(),
-  };
+  const sourceVersion = await getVersion(approvedBy, proposal.sourceVersionId);
+  if (!sourceVersion || sourceVersion.documentId !== proposal.documentId || sourceVersion.status !== 'READY') {
+    throw new NotFoundError('Source version not found');
+  }
+  const supabase = await createServiceClient();
+  const { data: branch, error: branchError } = await supabase
+    .from('branches')
+    .select('head_version_id')
+    .eq('id', proposal.branchId)
+    .eq('document_id', proposal.documentId)
+    .maybeSingle();
+  if (branchError || !branch) throw new NotFoundError('Proposal branch not found');
+  if (branch.head_version_id !== sourceVersion.id || (currentHeadVersionId && currentHeadVersionId !== sourceVersion.id)) {
+    throw new ConflictError('STALE_PROPOSAL: Branch HEAD has advanced; regenerate the proposal');
+  }
 
-  const result = proposalManager.approveProposal(
-    proposalId,
+  if (!isTextProposalMimeType(sourceVersion.mimeType)) {
+    throw new ConflictError('AI proposals can only be approved for text-based document versions');
+  }
+
+  const proposalExtension = extensionForProposalMime(sourceVersion.mimeType);
+
+  const createdVersion = await createVersion(
     approvedBy,
-    headVer,
-    (params) => ({
-      ...headVer,
-      id: `ver_${proposal.documentId}_${Date.now()}`,
-      parentVersionId: params.parentVersionId,
-      createdBy: params.createdBy,
-      message: params.message,
-    })
+    proposal.documentId,
+    Buffer.from(proposal.proposedContent, 'utf-8'),
+    sourceVersion.mimeType,
+    `AI Proposal Approved by ${approvedBy}: ${proposal.rationale ?? ''}`,
+    proposal.branchId,
+    proposal.sourceVersionId,
+    undefined,
+    `proposal${proposalExtension}`,
+    true,
   );
 
-  if (!result.success) {
-    throw new Error(result.error ?? 'Approval failed');
+  const { data: updatedProposal, error: updateError } = await supabase
+    .from('ai_proposals')
+    .update({
+      approval_status: 'APPROVED',
+      approved_by: approvedBy,
+      approved_at: new Date().toISOString(),
+      resulting_version_id: createdVersion.id,
+    })
+    .eq('id', proposalId)
+    .eq('approval_status', 'PENDING')
+    .select('*')
+    .maybeSingle();
+  if (updateError || !updatedProposal) {
+    throw new ConflictError('Proposal is no longer pending');
+  }
+
+  const document = await getDocument(approvedBy, proposal.documentId);
+  if (document) {
+    await logEvent({
+      tenantId: document.tenantId,
+      documentId: proposal.documentId,
+      versionId: createdVersion.id,
+      actorId: approvedBy,
+      actorType: 'human',
+      eventType: 'AI_PROPOSAL_APPROVED',
+      metadata: { proposalId, resultingVersionId: createdVersion.id, aiAgentId: proposal.actorId },
+    });
   }
 
   return {
-    id: proposal.id,
-    documentId: proposal.documentId,
-    sourceVersionId: proposal.sourceVersionId,
-    agentId: proposal.actorId ?? 'system',
-    taskDescription: proposal.rationale ?? '',
-    proposedContent: proposal.proposedContent,
-    approvalStatus: proposal.status ?? 'APPROVED',
-    approvedBy: proposal.approvedBy,
-    approvedAt: proposal.approvedAt,
-    resultingVersionId: proposal.resultingVersionId,
-    createdAt: proposal.createdAt,
+    ...mapProposal(updatedProposal),
   };
 }
 
@@ -157,28 +278,41 @@ export async function rejectProposal(
   proposalId: string,
   rejectedBy: string
 ): Promise<AIProposal> {
-  const proposal = proposalManager.getProposal(proposalId);
+  const proposal = await getStoredProposal(proposalId);
   if (!proposal) {
-    throw new Error(`Proposal ${proposalId} not found`);
+    throw new NotFoundError('Proposal not found');
   }
 
-  const result = proposalManager.rejectProposal(proposalId, rejectedBy);
-  if (!result.success) {
-    throw new Error(result.error ?? 'Rejection failed');
+  const supabase = await createServiceClient();
+  const { data: updatedProposal, error: updateError } = await supabase
+    .from('ai_proposals')
+    .update({
+      approval_status: 'REJECTED',
+      rejected_by: rejectedBy,
+      rejected_at: new Date().toISOString(),
+    })
+    .eq('id', proposalId)
+    .eq('approval_status', 'PENDING')
+    .select('*')
+    .maybeSingle();
+  if (updateError || !updatedProposal) {
+    throw new ConflictError('Proposal is no longer pending');
+  }
+
+  const document = await getDocument(rejectedBy, proposal.documentId);
+  if (document) {
+    await logEvent({
+      tenantId: document.tenantId,
+      documentId: proposal.documentId,
+      actorId: rejectedBy,
+      actorType: 'human',
+      eventType: 'AI_PROPOSAL_REJECTED',
+      metadata: { proposalId },
+    });
   }
 
   return {
-    id: proposal.id,
-    documentId: proposal.documentId,
-    sourceVersionId: proposal.sourceVersionId,
-    agentId: proposal.actorId ?? 'system',
-    taskDescription: proposal.rationale ?? '',
-    proposedContent: proposal.proposedContent,
-    approvalStatus: proposal.status ?? 'REJECTED',
-    approvedBy: proposal.approvedBy,
-    approvedAt: proposal.approvedAt,
-    resultingVersionId: proposal.resultingVersionId,
-    createdAt: proposal.createdAt,
+    ...mapProposal(updatedProposal),
   };
 }
 
@@ -186,22 +320,210 @@ export async function rejectProposal(
  * Answers questions about document history grounded strictly in structured evidence.
  */
 export async function answerHistoryQuestion(
-  _documentId: string,
+  documentId: string,
   question: string,
-  _userId: string
+  userId: string
 ): Promise<{ answer: string; sources: string[] }> {
-  void _userId;
+  const document = await getDocument(userId, documentId);
+  if (!document) throw new NotFoundError('Document not found');
+
+  const versionsResponse = await listVersions(userId, documentId, 1, 100);
+  const versions = versionsResponse.data;
+  const supabase = await createServiceClient();
+  const { data: changeRows } = await supabase
+    .from('structured_changes')
+    .select('id, base_version_id, target_version_id, type, section, old_value, new_value, category, severity, confidence')
+    .in('target_version_id', versions.map((version) => version.id));
+  const structuredChanges = (changeRows ?? []).map((row) => ({
+    id: row.id,
+    baseVersionId: row.base_version_id,
+    targetVersionId: row.target_version_id,
+    type: row.type,
+    section: row.section ?? undefined,
+    oldValue: row.old_value ?? undefined,
+    newValue: row.new_value ?? undefined,
+    category: row.category ?? undefined,
+    severity: row.severity ?? undefined,
+    confidence: row.confidence ?? undefined,
+  }));
+
+  // Give Q&A real, authorized document evidence instead of only metadata.
+  // Keep the prompt bounded and prefer the newest readable versions because
+  // questions such as "what is this about?" normally refer to current content.
+  const versionTexts = await getVersionTextContents(versions.map((version) => version.id));
+  const missingVersions = versions.filter((version) => !versionTexts.has(version.id)).slice(0, 5);
+  const recoveredTexts = await Promise.all(
+    missingVersions.map(async (version) => [version.id, await recoverVersionText(userId, version.id)] as const),
+  );
+  for (const [versionId, text] of recoveredTexts) {
+    if (text !== undefined) versionTexts.set(versionId, text);
+  }
+  const versionTextEvidence: Array<{ versionId: string; versionNumber: number; text: string }> = [];
+  let remainingCharacters = 24_000;
+  for (const version of versions) {
+    if (remainingCharacters <= 0) break;
+    const text = versionTexts.get(version.id)?.trim();
+    if (!text) continue;
+    const boundedText = text.slice(0, Math.min(8_000, remainingCharacters));
+    versionTextEvidence.push({
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      text: boundedText,
+    });
+    remainingCharacters -= boundedText.length;
+  }
 
   const result = await answerHistoryQuestionEngine(
     question,
+    versions,
+    structuredChanges,
     [],
-    [],
-    [],
-    gateway
+    gateway,
+    {
+      documentTitle: document.title,
+      versionText: versionTextEvidence,
+    },
   );
 
   return {
     answer: result.answer ?? result.message ?? 'No history information available.',
     sources: result.sourceVersionIds ?? [],
+  };
+}
+
+/**
+ * Backfill derived text for older versions whose processing did not complete.
+ * The caller must already have authorized the document/version. The original
+ * immutable bytes remain the only source; extracted text is only derived data.
+ */
+async function recoverVersionText(userId: string, versionId: string): Promise<string | undefined> {
+  try {
+    const storedText = await getVersionTextContent(versionId);
+    if (storedText !== undefined) return storedText;
+
+    const version = await getVersion(userId, versionId);
+    if (!version) return undefined;
+    const content = await downloadVersionContent(userId, versionId);
+    // Storage metadata may be application/octet-stream for older uploads.
+    // Recover the real parser from the preserved filename extension first.
+    const extractionMimeType = inferMimeType(content.fileName, content.mimeType || version.mimeType);
+    const extracted = await extractDocumentText(content.data, extractionMimeType);
+
+    try {
+      const document = await getDocument(userId, version.documentId);
+      if (document) {
+        await storeVersionText({
+          tenantId: document.tenantId,
+          documentId: version.documentId,
+          versionId,
+          mimeType: extractionMimeType,
+          extracted,
+        });
+      }
+    } catch {
+      // The current request can still use extracted text if backfill storage fails.
+    }
+
+    return extracted.extractionStatus === 'READY' ? extracted.text : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function getVersionForProposal(sourceVersionId: string, documentId: string) {
+  const supabase = await createServiceClient();
+  const { data: sourceVersion, error } = await supabase
+    .from('versions')
+    .select('id, document_id, branch_id, status, mime_type')
+    .eq('id', sourceVersionId)
+    .maybeSingle();
+  if (error || !sourceVersion || sourceVersion.document_id !== documentId || sourceVersion.status !== 'READY') {
+    throw new NotFoundError('Source version not found');
+  }
+  return { id: sourceVersion.id, branchId: sourceVersion.branch_id, status: sourceVersion.status, mimeType: sourceVersion.mime_type as string };
+}
+
+function isTextProposalMimeType(mimeType: string): boolean {
+  return new Set([
+    'text/plain',
+    'text/markdown',
+    'text/csv',
+    'text/tab-separated-values',
+    'application/json',
+    'application/xml',
+    'text/html',
+    'application/rtf',
+  ]).has(mimeType);
+}
+
+function extensionForProposalMime(mimeType: string): string {
+  const extensions: Record<string, string> = {
+    'text/plain': '.txt',
+    'text/markdown': '.md',
+    'text/csv': '.csv',
+    'text/tab-separated-values': '.tsv',
+    'application/json': '.json',
+    'application/xml': '.xml',
+    'text/html': '.html',
+    'application/rtf': '.rtf',
+  };
+  return extensions[mimeType] ?? '.txt';
+}
+
+async function getStoredProposal(proposalId: string): Promise<StoredProposal | null> {
+  const supabase = await createServiceClient();
+  const { data, error } = await supabase
+    .from('ai_proposals')
+    .select('*')
+    .eq('id', proposalId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    documentId: data.document_id,
+    branchId: data.branch_id,
+    sourceVersionId: data.source_version_id,
+    agentId: data.agent_id ?? data.actor_id ?? 'ai_agent',
+    actorId: data.actor_id ?? undefined,
+    taskDescription: data.task_description ?? data.rationale ?? '',
+    rationale: data.rationale ?? undefined,
+    proposedContent: data.proposed_content ?? '',
+    status: data.approval_status,
+    approvalStatus: data.approval_status,
+    approvedBy: data.approved_by ?? undefined,
+    approvedAt: data.approved_at ?? undefined,
+    resultingVersionId: data.resulting_version_id ?? undefined,
+    createdAt: data.created_at,
+  };
+}
+
+function mapProposal(row: StoredProposal | ProposalRow): AIProposal {
+  if ('documentId' in row) {
+    return {
+      id: row.id,
+      documentId: row.documentId,
+      sourceVersionId: row.sourceVersionId,
+      agentId: row.agentId ?? row.actorId ?? 'ai_agent',
+      taskDescription: row.taskDescription ?? row.rationale ?? '',
+      proposedContent: row.proposedContent,
+      approvalStatus: row.approvalStatus ?? row.status ?? 'PENDING',
+      approvedBy: row.approvedBy,
+      approvedAt: row.approvedAt,
+      resultingVersionId: row.resultingVersionId,
+      createdAt: row.createdAt,
+    };
+  }
+  return {
+    id: row.id,
+    documentId: row.document_id,
+    sourceVersionId: row.source_version_id,
+    agentId: row.agent_id ?? row.actor_id ?? 'ai_agent',
+    taskDescription: row.task_description ?? row.rationale ?? '',
+    proposedContent: row.proposed_content ?? '',
+    approvalStatus: row.approval_status ?? 'PENDING',
+    approvedBy: row.approved_by ?? undefined,
+    approvedAt: row.approved_at ?? undefined,
+    resultingVersionId: row.resulting_version_id ?? undefined,
+    createdAt: row.created_at,
   };
 }

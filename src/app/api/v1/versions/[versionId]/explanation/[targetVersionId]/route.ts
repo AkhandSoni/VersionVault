@@ -27,7 +27,7 @@ export async function GET(
       );
     }
 
-    const explanation = await getExplanation(baseVersionId, targetVersionId);
+    const explanation = await getExplanation(baseVersionId, targetVersionId, undefined, undefined, user.id);
     return NextResponse.json(explanation);
   } catch (err) {
     const apiError = toApiError(err);

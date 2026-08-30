@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { toApiError, UnauthorizedError, ValidationError } from '@/lib/errors';
+import { toApiError, UnauthorizedError } from '@/lib/errors';
+import { SessionRequestSchema, parseJson } from '@/lib/schemas';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await readJsonObject(request);
-    const accessToken = typeof body.accessToken === 'string' ? body.accessToken : '';
-    const refreshToken = typeof body.refreshToken === 'string' ? body.refreshToken : '';
-
-    if (!accessToken || !refreshToken) {
-      throw new ValidationError('Access token and refresh token are required');
-    }
+    const body = await parseJson(request, SessionRequestSchema);
+    const { accessToken, refreshToken } = body;
 
     const supabase = await createClient();
     const { data, error } = await supabase.auth.setSession({
@@ -40,19 +36,6 @@ export async function POST(request: NextRequest) {
       { error: apiError.error, message: apiError.message },
       { status: apiError.statusCode },
     );
-  }
-}
-
-async function readJsonObject(request: NextRequest): Promise<Record<string, unknown>> {
-  try {
-    const body = await request.json();
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-      throw new ValidationError('Expected a JSON object');
-    }
-    return body as Record<string, unknown>;
-  } catch (err) {
-    if (err instanceof ValidationError) throw err;
-    throw new ValidationError('Invalid JSON request body');
   }
 }
 

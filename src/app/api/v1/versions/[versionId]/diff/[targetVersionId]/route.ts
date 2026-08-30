@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getVersion } from '@/services/version.service';
-import { computeDiff } from '@/services/diff.service';
+import { computeDiff, storeStructuredChanges } from '@/services/diff.service';
 import { toApiError } from '@/lib/errors';
 
 // GET /api/v1/versions/:versionId/diff/:targetVersionId — Deterministic diff
@@ -28,6 +28,7 @@ export async function GET(
     }
 
     const changes = await computeDiff(baseVersionId, targetVersionId);
+    await storeStructuredChanges(changes);
     const materialChanges = changes.filter((c) => c.severity === 'HIGH' || c.severity === 'MEDIUM');
 
     return NextResponse.json({
@@ -35,6 +36,7 @@ export async function GET(
       targetVersionId,
       changes,
       materialChangeCount: materialChanges.length,
+      extractionBacked: changes.length > 0,
     });
   } catch (err) {
     const apiError = toApiError(err);

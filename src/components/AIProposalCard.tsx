@@ -4,24 +4,42 @@ import type { AIProposal } from '../types';
 
 interface AIProposalCardProps {
   proposal: AIProposal;
-  onApprove?: (proposalId: string) => void;
-  onReject?: (proposalId: string) => void;
+  canEdit?: boolean;
+  onApprove?: (proposalId: string) => Promise<void> | void;
+  onReject?: (proposalId: string) => Promise<void> | void;
 }
 
-export function AIProposalCard({ proposal, onApprove, onReject }: AIProposalCardProps) {
+export function AIProposalCard({ proposal, canEdit = true, onApprove, onReject }: AIProposalCardProps) {
   const [status, setStatus] = useState<string>(proposal.approval.toUpperCase());
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function handleApprove() {
-    setStatus('APPROVED');
-    setFeedback('AI Proposal approved. A new immutable version has been recorded on branch head.');
-    onApprove?.(proposal.id);
+  async function handleApprove() {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await onApprove?.(proposal.id);
+      setStatus('APPROVED');
+      setFeedback('AI Proposal approved. A new immutable version has been recorded on branch head.');
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Could not approve this proposal.');
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function handleReject() {
-    setStatus('REJECTED');
-    setFeedback('AI Proposal rejected. Document history remains untouched.');
-    onReject?.(proposal.id);
+  async function handleReject() {
+    setBusy(true);
+    setFeedback(null);
+    try {
+      await onReject?.(proposal.id);
+      setStatus('REJECTED');
+      setFeedback('AI Proposal rejected. Document history remains untouched.');
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Could not reject this proposal.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -87,11 +105,12 @@ export function AIProposalCard({ proposal, onApprove, onReject }: AIProposalCard
         </p>
       )}
 
-      {status === 'PENDING' && (
+      {status === 'PENDING' && canEdit && (
         <div className="mt-5 flex flex-wrap justify-end gap-2.5 pt-3 border-t border-orange-200/60">
           <button
             type="button"
             onClick={handleReject}
+            disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 hover:border-rose-200">
             <XCircleIcon className="h-4 w-4" />
             Reject
@@ -99,12 +118,18 @@ export function AIProposalCard({ proposal, onApprove, onReject }: AIProposalCard
           <button
             type="button"
             onClick={handleApprove}
+            disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500">
             <CheckCircle2Icon className="h-4 w-4" />
             Approve & Create Version
           </button>
         </div>
       )}
+      {status === 'PENDING' && !canEdit ? (
+        <p className="mt-5 border-t border-orange-200/60 pt-3 text-xs font-medium text-ink-muted">
+          Read-only access: an owner or editor must review this proposal.
+        </p>
+      ) : null}
     </section>
   );
 }

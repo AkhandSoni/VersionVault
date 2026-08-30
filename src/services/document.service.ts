@@ -7,7 +7,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { ValidationError, AppError, NotFoundError, ForbiddenError } from '@/lib/errors';
 import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 import { logEvent } from './activity.service';
-import { assertDocumentCanEdit, assertDocumentCanRead } from './authorization.service';
+import { assertDocumentCanEdit, assertDocumentCanRead, assertDocumentOwner } from './authorization.service';
+import { deleteObjects } from './storage.service';
 import type { Document } from '@/types/domain';
 import type { CreateDocumentRequest, UpdateDocumentRequest, PaginatedResponse } from '@/types/api';
 
@@ -72,12 +73,22 @@ export async function createDocument(
     .select('id')
     .single();
 
-  if (branch && !branchError) {
-    // 4. Update default_branch_id pointer on document
-    await supabase
+  if (branchError || !branch) {
+    const cleanupClient = await createServiceClient();
+    await cleanupClient.from('documents').delete().eq('id', doc.id);
+    throw new AppError(`Failed to create default branch: ${branchError?.message ?? 'No branch returned'}`, 'BRANCH_CREATE_FAILED', 500);
+  }
+
+  // 4. Update default_branch_id pointer on document
+  const { error: defaultBranchError } = await supabase
       .from('documents')
       .update({ default_branch_id: branch.id })
       .eq('id', doc.id);
+  if (defaultBranchError) {
+    const cleanupClient = await createServiceClient();
+    await cleanupClient.from('branches').delete().eq('id', branch.id);
+    await cleanupClient.from('documents').delete().eq('id', doc.id);
+    throw new AppError(`Failed to set default branch: ${defaultBranchError.message}`, 'DOCUMENT_CREATE_FAILED', 500);
   }
 
   // 5. Log audit event
@@ -140,6 +151,7 @@ export async function listDocuments(
     .from('documents')
     .select('*', { count: 'exact' })
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
     .range(from, to);
 
@@ -156,6 +168,7 @@ export async function listDocuments(
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    accessRole: membership.role as Document['accessRole'],
   }));
 
   return {
@@ -199,4 +212,79 @@ export async function updateDocument(
     createdAt: updatedDoc.created_at,
     updatedAt: updatedDoc.updated_at,
   };
+}
+
+export async function deleteDocument(userId: string, documentId: string): Promise<void> {
+  const { document: doc } = await assertDocumentOwner(userId, documentId);
+  const supabase = await createServiceClient();
+
+  const { data: storageRows, error: storageListError } = await supabase
+    .from('storage_objects')
+    .select('storage_path')
+    .eq('document_id', documentId);
+
+  if (storageListError) {
+    throw new AppError(`Failed to list document storage: ${storageListError.message}`, 'DOCUMENT_STORAGE_LIST_FAILED', 500);
+  }
+
+  await deleteObjects((storageRows || []).map((row) => row.storage_path).filter(Boolean));
+
+  await logEvent({
+    tenantId: doc.tenantId,
+    documentId,
+    actorId: userId,
+    actorType: 'human',
+    eventType: 'DOCUMENT_DELETED',
+    metadata: { title: doc.title },
+  });
+
+  const deletedAt = new Date().toISOString();
+  const { error: archiveBranchesError } = await supabase
+    .from('branches')
+    .update({ status: 'ARCHIVED' })
+    .eq('document_id', documentId);
+  if (archiveBranchesError) {
+    throw new AppError(`Failed to archive document branches: ${archiveBranchesError.message}`, 'DOCUMENT_ARCHIVE_FAILED', 500);
+  }
+
+  const { error: deleteError } = await supabase
+    .from('documents')
+    .update({ deleted_at: deletedAt })
+    .eq('id', documentId)
+    .is('deleted_at', null);
+
+  if (deleteError) {
+    throw new AppError(`Failed to soft-delete document: ${deleteError.message}`, 'DOCUMENT_DELETE_FAILED', 500);
+  }
+}
+
+/**
+ * Permanently remove a document and its complete version graph.
+ * Storage is deleted first; the database RPC then removes all dependent
+ * records in one transaction and leaves only a tenant-level audit event.
+ */
+export async function purgeDocument(userId: string, documentId: string): Promise<void> {
+  await assertDocumentOwner(userId, documentId);
+  const supabase = await createServiceClient();
+
+  const { data: storageRows, error: storageListError } = await supabase
+    .from('storage_objects')
+    .select('storage_path')
+    .eq('document_id', documentId);
+
+  if (storageListError) {
+    throw new AppError(`Failed to list document storage: ${storageListError.message}`, 'DOCUMENT_STORAGE_LIST_FAILED', 500);
+  }
+
+  await deleteObjects((storageRows || []).map((row) => row.storage_path).filter(Boolean));
+
+  const { error: purgeError } = await supabase.rpc('purge_document', {
+    p_document_id: documentId,
+    p_actor_id: userId,
+  });
+
+  if (purgeError) {
+    throw new AppError(`Failed to permanently delete document: ${purgeError.message}`, 'DOCUMENT_PURGE_FAILED', 500);
+  }
+
 }

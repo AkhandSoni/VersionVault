@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "../src/ai/gateway.js";
+import { GroqGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "../src/ai/gateway.js";
 import { explainStructuredChanges } from "../src/ai/explainer.js";
 import { answerHistoryQuestion } from "../src/ai/historyQa.js";
 import { StructuredChange } from "../src/types/contracts.js";
 
 describe("AI Gateway & Fallback Layer", () => {
   it("should return the exact user specified unavailable message when API key is missing or calls fail", async () => {
-    const gateway = new OpenRouterGateway({ apiKey: "" });
+    const gateway = new GroqGateway({ apiKey: "" });
 
     const changes: StructuredChange[] = [
       {
@@ -30,7 +30,7 @@ describe("AI Gateway & Fallback Layer", () => {
   });
 
   it("should return unavailable message on network timeout or fetch error", async () => {
-    const gateway = new OpenRouterGateway({ apiKey: "invalid_key", baseUrl: "http://localhost:9999" });
+    const gateway = new GroqGateway({ apiKey: "invalid_key", baseUrl: "http://localhost:9999" });
 
     const qaResult = await answerHistoryQuestion(
       "Which version changed payment terms?",

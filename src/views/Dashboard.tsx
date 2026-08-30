@@ -15,13 +15,14 @@ interface DashboardProps {
 }
 
 export function Dashboard({ documentView = 'list' }: DashboardProps) {
-  const { documents, loading, error, createDocument, refresh } = useVaultData();
+  const { documents, loading, error, createDocument, refresh, memberships, tenantId } = useVaultData();
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const changes = materialChanges(documents).slice(0, 4);
   const reviews = documents.filter((doc) => doc.reviewNeeded).length;
   const versions = documents.reduce((total, doc) => total + doc.versionCount, 0);
+  const canCreate = memberships.find((membership) => membership.tenantId === tenantId)?.role !== 'VIEWER';
 
   async function handleCreate(title: string, initialContent?: string) {
     await createDocument(title, initialContent);
@@ -43,7 +44,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
           title="No documents yet"
           description="Create your first document to start building an immutable history."
           icon={<FileTextIcon className="h-5 w-5" aria-hidden="true" />}
-          action={
+          action={canCreate ? (
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
@@ -51,7 +52,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
               <PlusIcon className="h-4 w-4" aria-hidden="true" />
               New document
             </button>
-          }
+          ) : undefined}
         />
         <CreateDocumentDialog
           open={createOpen}
@@ -63,7 +64,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl" data-testid="page-dashboard">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-eyebrow text-orange-800 font-semibold">Overview</p>
@@ -138,6 +139,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
+            disabled={!canCreate}
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:from-orange-500 hover:to-amber-500 transition-all">
             <PlusIcon className="h-4 w-4" />
             New Document

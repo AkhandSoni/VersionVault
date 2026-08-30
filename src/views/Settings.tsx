@@ -22,7 +22,7 @@ export function Settings() {
   }
 
   return (
-    <form onSubmit={handleSave} className="mx-auto max-w-3xl space-y-6">
+    <form onSubmit={handleSave} className="mx-auto max-w-3xl space-y-6" data-testid="page-settings">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-eyebrow text-orange-800 font-semibold">Settings</p>

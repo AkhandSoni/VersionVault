@@ -145,7 +145,27 @@ CREATE TABLE IF NOT EXISTS public.storage_objects (
 );
 
 -- ============================================================
--- 7. STRUCTURED CHANGES
+-- 7. VERSION TEXTS
+-- Extracted normalized text used by deterministic diff/provenance.
+-- Original files remain in private storage_objects.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.version_texts (
+  version_id UUID PRIMARY KEY REFERENCES public.versions(id) ON DELETE CASCADE,
+  document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  mime_type TEXT NOT NULL,
+  text_content TEXT NOT NULL DEFAULT '',
+  text_hash TEXT,
+  extraction_status TEXT NOT NULL CHECK (extraction_status IN ('READY', 'UNSUPPORTED', 'FAILED')),
+  extractor TEXT NOT NULL,
+  warnings TEXT[] NOT NULL DEFAULT '{}',
+  error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- 8. STRUCTURED CHANGES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.structured_changes (
   id TEXT PRIMARY KEY,
@@ -163,7 +183,7 @@ CREATE TABLE IF NOT EXISTS public.structured_changes (
 );
 
 -- ============================================================
--- 8. PROCESSING JOBS
+-- 9. PROCESSING JOBS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.processing_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -177,12 +197,12 @@ CREATE TABLE IF NOT EXISTS public.processing_jobs (
 );
 
 -- ============================================================
--- 9. ACTIVITY EVENTS (Append-only Audit Log)
+-- 10. ACTIVITY EVENTS (Append-only Audit Log)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.activity_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  document_id UUID REFERENCES public.documents(id) ON DELETE CASCADE,
+  document_id UUID REFERENCES public.documents(id) ON DELETE SET NULL,
   version_id UUID REFERENCES public.versions(id) ON DELETE SET NULL,
   actor_id TEXT NOT NULL,
   actor_type TEXT NOT NULL CHECK (actor_type IN ('human', 'user', 'ai_agent')),
@@ -192,7 +212,7 @@ CREATE TABLE IF NOT EXISTS public.activity_events (
 );
 
 -- ============================================================
--- 10. AI EXPLANATIONS
+-- 11. AI EXPLANATIONS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.ai_explanations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -206,7 +226,7 @@ CREATE TABLE IF NOT EXISTS public.ai_explanations (
 );
 
 -- ============================================================
--- 11. AI PROPOSALS
+-- 12. AI PROPOSALS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public.ai_proposals (
   id TEXT PRIMARY KEY,
@@ -265,6 +285,16 @@ CREATE OR REPLACE FUNCTION check_activity_events_append_only()
 RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'UPDATE' THEN
+    IF OLD.tenant_id IS NOT DISTINCT FROM NEW.tenant_id
+      AND OLD.actor_id IS NOT DISTINCT FROM NEW.actor_id
+      AND OLD.actor_type IS NOT DISTINCT FROM NEW.actor_type
+      AND OLD.event_type IS NOT DISTINCT FROM NEW.event_type
+      AND OLD.metadata IS NOT DISTINCT FROM NEW.metadata
+      AND OLD.created_at IS NOT DISTINCT FROM NEW.created_at
+      AND (OLD.document_id IS NOT DISTINCT FROM NEW.document_id OR NEW.document_id IS NULL)
+      AND (OLD.version_id IS NOT DISTINCT FROM NEW.version_id OR NEW.version_id IS NULL) THEN
+      RETURN NEW;
+    END IF;
     RAISE EXCEPTION 'CANNOT_UPDATE_AUDIT_LOG: activity_events is strictly append-only';
   ELSIF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'CANNOT_DELETE_AUDIT_LOG: activity_events records cannot be deleted';
@@ -290,6 +320,7 @@ ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.collaborators ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.storage_objects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.version_texts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.structured_changes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.processing_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_events ENABLE ROW LEVEL SECURITY;
@@ -520,6 +551,18 @@ CREATE POLICY "storage_objects_insert" ON public.storage_objects
   FOR INSERT WITH CHECK (public.can_edit_tenant(tenant_id));
 
 -- 8. Structured Changes Policies
+DROP POLICY IF EXISTS "version_texts_select" ON public.version_texts;
+CREATE POLICY "version_texts_select" ON public.version_texts
+  FOR SELECT USING (public.can_read_document(document_id));
+
+DROP POLICY IF EXISTS "version_texts_insert" ON public.version_texts;
+CREATE POLICY "version_texts_insert" ON public.version_texts
+  FOR INSERT WITH CHECK (public.can_edit_document(document_id));
+
+DROP POLICY IF EXISTS "version_texts_update" ON public.version_texts;
+CREATE POLICY "version_texts_update" ON public.version_texts
+  FOR UPDATE USING (public.can_edit_document(document_id));
+
 DROP POLICY IF EXISTS "structured_changes_select" ON public.structured_changes;
 CREATE POLICY "structured_changes_select" ON public.structured_changes
   FOR SELECT USING (
@@ -566,8 +609,21 @@ VALUES (
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/msword',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.presentation',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/rtf',
     'text/plain',
-    'text/markdown'
+    'text/markdown',
+    'text/csv',
+    'text/tab-separated-values',
+    'application/json',
+    'application/xml',
+    'text/html'
   ]
 )
 ON CONFLICT (id) DO UPDATE SET

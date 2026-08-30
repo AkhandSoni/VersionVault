@@ -4,13 +4,14 @@ Evidence-first document version control for human and AI-modified documents.
 
 VersionVault proves what changed in a document before AI explains why it matters. It combines immutable snapshots, SHA-256 integrity, deterministic diffing, provenance/blame, RBAC, audit logs, and graceful AI fallback behavior.
 
-## Current Demo Path
+## Current Production Path
 
-Recommended hackathon path:
+The Next.js App Router is the authoritative production entrypoint:
 
-- Use the Vite UI for the polished demo surface.
-- Use the Next.js app/API as the full-stack backend credibility layer.
-- Keep deterministic diff/provenance/security as the source of truth; AI is secondary and may be unavailable.
+- `npm.cmd run dev` serves the canonical UI and API at `http://localhost:3000`.
+- Dashboard, document workspace, deterministic compare, evidence/provenance, branches, restore, proposals, and audit views all use the authorization-scoped `/api/v1` contract.
+- Vite remains a temporary reference build while the migration is validated; it is not the production entrypoint.
+- Deterministic diff/provenance/security remain the source of truth; AI is secondary and may be unavailable.
 
 ## Stack
 
@@ -19,7 +20,7 @@ Recommended hackathon path:
 | Full-stack app/API | Next.js 16 App Router, React 19, TypeScript |
 | Demo UI | Vite, React Router, Tailwind CSS, Lucide React, Framer Motion |
 | Database/auth/storage | Supabase PostgreSQL, Auth, private Storage |
-| AI gateway | OpenRouter |
+| AI gateway | Groq |
 | Core engine | SHA-256 hashing, parent hash chaining, deterministic diff, materiality, provenance |
 | Tests | Vitest |
 
@@ -47,7 +48,7 @@ supabase/       Database migrations
 - Node.js 20 or newer
 - npm
 - Supabase project, if using real auth/database/storage
-- OpenRouter API key, if using live AI responses
+- Groq API key, if using live AI responses
 
 On Windows PowerShell, prefer `npm.cmd` because `npm.ps1` may be blocked by execution policy.
 
@@ -80,11 +81,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
+The upload pipeline preserves the original immutable bytes for common office and
+document formats: DOC/DOCX, PPT/PPTX, XLS/XLSX, PDF, ODT/ODP/ODS, RTF, TXT,
+Markdown, CSV/TSV, JSON, XML, and HTML. It also accepts other valid non-executable
+MIME types up to 50 MB, preserving their exact bytes and filename extension.
+Modern XML-based Office files and text documents get deterministic text extraction
+for history comparison; legacy binary Office files and unknown formats remain
+fully downloadable but are marked as extraction-unsupported.
+
 Optional for AI:
 
 ```env
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=meta-llama/llama-3.1-70b-instruct
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-20b
 ```
 
 Optional and currently only needed if queue/workers are introduced:
@@ -120,12 +129,14 @@ Setup:
 1. Create a Supabase project.
 2. Copy the project URL and anon key into `.env.local`.
 3. Copy the service role key into `SUPABASE_SERVICE_ROLE_KEY`.
-4. Apply the migration in `supabase/migrations/001_initial_schema.sql`.
+4. Apply migrations `001_initial_schema.sql` through `014_permanent_document_delete.sql` in filename order.
 5. Ensure the private storage bucket expected by the backend exists. The current services use the `documents` bucket.
+
+Migration `009_idempotency_keys.sql` enables durable retry protection for uploads and other state-changing requests. During a rolling deployment, the app temporarily allows those requests to proceed if this one table is not yet present; apply migration 009 as soon as possible to prevent duplicate retries.
 
 Security note: `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and must only be used server-side. The service layer includes explicit authorization guards for service-role reads/writes.
 
-### OpenRouter
+### Groq
 
 Used for:
 
@@ -135,11 +146,11 @@ Used for:
 
 Setup:
 
-1. Create an OpenRouter key at `https://openrouter.ai/keys`.
-2. Set `OPENROUTER_API_KEY`.
-3. Set `OPENROUTER_MODEL`, or use the default model above.
+1. Create a Groq key at `https://console.groq.com/keys`.
+2. Set `GROQ_API_KEY`.
+3. Set `GROQ_MODEL`, or use the default model above.
 
-If `OPENROUTER_API_KEY` is missing or the network call fails, the app returns an explicit unavailable state. Deterministic diff and provenance continue to work.
+If `GROQ_API_KEY` is missing or the network call fails, the app returns an explicit unavailable state. Deterministic diff and provenance continue to work.
 
 ### Redis
 
@@ -163,7 +174,7 @@ Open:
 http://localhost:3000
 ```
 
-### Vite demo UI
+### Vite reference UI (temporary)
 
 ```bash
 npm.cmd run dev:vite
@@ -191,7 +202,7 @@ npm.cmd run build
 npm.cmd run build:vite
 ```
 
-The Vite build outputs to `dist/`.
+The Vite build outputs to `dist/`. It is retained for visual regression/reference purposes only.
 
 ## Test And Lint
 
@@ -208,6 +219,9 @@ Current verified status:
 - Lint passes.
 - Next production build passes.
 - Vite production build passes.
+- 39 unit/security tests pass.
+
+The request boundary is implemented with the Next.js 16 `proxy.ts` convention.
 
 ## Demo Script
 

@@ -4,6 +4,8 @@
 
 import type { StructuredChange } from '../types/contracts';
 import { computeStructuredDiff } from '../engine/diff';
+import { getVersionTextContent } from './extraction.service';
+import { createServiceClient } from '@/lib/supabase/server';
 
 // In-memory version content store fallback (for demo/standalone test usage)
 const versionContentStore = new Map<string, string>();
@@ -31,8 +33,18 @@ export async function computeDiff(
   baseContentOverride?: string,
   targetContentOverride?: string
 ): Promise<StructuredChange[]> {
-  const baseContent = baseContentOverride ?? versionContentStore.get(baseVersionId) ?? '';
-  const targetContent = targetContentOverride ?? versionContentStore.get(targetVersionId) ?? '';
+  const baseContent =
+    baseContentOverride ??
+    (await getVersionTextContent(baseVersionId)) ??
+    versionContentStore.get(baseVersionId);
+  const targetContent =
+    targetContentOverride ??
+    (await getVersionTextContent(targetVersionId)) ??
+    versionContentStore.get(targetVersionId);
+
+  if (baseContent === undefined || targetContent === undefined) {
+    return [];
+  }
 
   const result = computeStructuredDiff(
     baseContent,
@@ -42,6 +54,34 @@ export async function computeDiff(
   );
 
   return result.changes as StructuredChange[];
+}
+
+/**
+ * Persist computed changes so API consumers can review stable evidence.
+ */
+export async function storeStructuredChanges(changes: StructuredChange[]): Promise<void> {
+  if (changes.length === 0) return;
+
+  const supabase = await createServiceClient();
+  const { error } = await supabase.from('structured_changes').upsert(
+    changes.map((change) => ({
+      id: change.id,
+      base_version_id: change.baseVersionId,
+      target_version_id: change.targetVersionId,
+      type: change.type,
+      section: change.section ?? null,
+      old_value: change.oldValue ?? null,
+      new_value: change.newValue ?? null,
+      category: change.category ?? null,
+      severity: change.severity ?? null,
+      confidence: change.confidence ?? null,
+      location: change.location ?? null,
+    })),
+  );
+
+  if (error) {
+    throw new Error(`Failed to store structured changes: ${error.message}`);
+  }
 }
 
 /**

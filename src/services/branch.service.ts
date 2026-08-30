@@ -3,7 +3,7 @@
 // ============================================================
 
 import { createServiceClient } from '@/lib/supabase/server';
-import { NotFoundError, AppError, ValidationError } from '@/lib/errors';
+import { NotFoundError, AppError, ConflictError, ValidationError } from '@/lib/errors';
 import { logEvent } from './activity.service';
 import { assertDocumentCanEdit, assertDocumentCanRead } from './authorization.service';
 import type { Branch } from '@/types/domain';
@@ -23,25 +23,47 @@ export async function createBranch(
     throw new ValidationError('Branch name is required');
   }
 
+  const canonicalName = normalizedName.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!canonicalName || canonicalName === 'main') {
+    throw new ValidationError('Choose a branch name other than main');
+  }
+  if (canonicalName.length > 100) {
+    throw new ValidationError('Branch name must be 100 characters or fewer');
+  }
+
   const { document: doc } = await assertDocumentCanEdit(userId, documentId);
   const supabase = await createServiceClient();
 
   // Verify base version exists
   const { data: baseVer, error: verError } = await supabase
     .from('versions')
-    .select('id')
+    .select('id, branch_id, status')
     .eq('id', data.baseVersionId)
     .eq('document_id', documentId)
     .single();
 
-  if (verError || !baseVer) {
+  if (verError || !baseVer || baseVer.status !== 'READY') {
     throw new NotFoundError('Base version not found');
+  }
+
+  const { data: existingBranch, error: existingBranchError } = await supabase
+    .from('branches')
+    .select('id')
+    .eq('document_id', documentId)
+    .eq('name', canonicalName)
+    .maybeSingle();
+
+  if (existingBranchError) {
+    throw new AppError('Failed to check branch name availability', 'BRANCH_LOOKUP_FAILED', 500);
+  }
+  if (existingBranch) {
+    throw new ConflictError('A branch with this name already exists');
   }
 
   const branchPayload = {
     document_id: documentId,
     tenant_id: doc.tenantId,
-    name: normalizedName,
+    name: canonicalName,
     base_version_id: data.baseVersionId,
     head_version_id: data.baseVersionId,
     status: 'ACTIVE',
@@ -55,7 +77,10 @@ export async function createBranch(
     .single();
 
   if (branchError || !branch) {
-    throw new AppError(`Failed to create branch: ${branchError?.message}`, 'BRANCH_CREATE_FAILED', 400);
+    if (branchError?.code === '23505') {
+      throw new ConflictError('A branch with this name already exists');
+    }
+    throw new AppError('Failed to create branch', 'BRANCH_CREATE_FAILED', 500);
   }
 
   // Audit event
@@ -86,6 +111,13 @@ export async function listBranches(
   documentId: string,
 ): Promise<Branch[]> {
   await assertDocumentCanRead(userId, documentId);
+  return listBranchesForAuthorizedDocument(documentId);
+}
+
+/** Query branches after the parent document has already been authorized. */
+export async function listBranchesForAuthorizedDocument(
+  documentId: string,
+): Promise<Branch[]> {
   const supabase = await createServiceClient();
 
   const { data, error } = await supabase

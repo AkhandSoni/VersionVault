@@ -73,7 +73,33 @@ export class StorageError extends AppError {
  */
 export function toApiError(err: unknown): { error: string; message: string; statusCode: number } {
   if (err instanceof AppError) {
-    return { error: err.code, message: err.message, statusCode: err.statusCode };
+    if (err.code === 'STORAGE_ERROR') {
+      return {
+        error: err.code,
+        message: 'File storage is unavailable. Verify that the private "documents" bucket exists in Supabase.',
+        statusCode: err.statusCode,
+      };
+    }
+    if (err.code === 'VERSION_FINALIZE_FAILED') {
+      return {
+        error: err.code,
+        message: 'The database migrations are incomplete. Apply all migrations in supabase/migrations in filename order, then retry.',
+        statusCode: err.statusCode,
+      };
+    }
+    const safeCodes = new Set([
+      'UNAUTHORIZED',
+      'FORBIDDEN',
+      'NOT_FOUND',
+      'CONFLICT',
+      'VALIDATION_ERROR',
+      'UPLOAD_ERROR',
+    ]);
+    return {
+      error: err.code,
+      message: safeCodes.has(err.code) ? err.message : 'The request could not be completed safely.',
+      statusCode: err.statusCode,
+    };
   }
   // Generic — don't expose internal error details
   return { error: 'INTERNAL_ERROR', message: 'An unexpected error occurred', statusCode: 500 };

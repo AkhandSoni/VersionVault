@@ -20,10 +20,10 @@ interface Message {
 }
 
 const presetQuestions = [
+  'What is this document about?',
   'What changed in the latest version?',
   'Which versions contain material changes?',
   'Who created the first version of this document?',
-  'Are there any unreviewed AI proposals pending on this document?',
 ];
 
 export function HistoryQADialog({ open, doc, onClose }: HistoryQADialogProps) {
@@ -33,7 +33,7 @@ export function HistoryQADialog({ open, doc, onClose }: HistoryQADialogProps) {
     {
       id: 'welcome',
       sender: 'ai',
-      text: `Ask about "${doc.title}". Answers are requested from the backend and must be grounded in authorized version evidence.`,
+      text: `Ask about "${doc.title}". Answers are grounded in the document's extracted content and authorized version evidence.`,
       timestamp: 'Just now',
     },
   ]);
@@ -161,7 +161,7 @@ export function HistoryQADialog({ open, doc, onClose }: HistoryQADialogProps) {
               {loading ? (
                 <div className="flex w-fit animate-pulse items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-xs text-orange-800">
                   <SparklesIcon className="h-3.5 w-3.5" />
-                  Analyzing authorized version evidence...
+                  Analyzing the document content and authorized version evidence...
                 </div>
               ) : null}
             </div>

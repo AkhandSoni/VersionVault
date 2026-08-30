@@ -40,7 +40,7 @@ export function Branches() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl" data-testid="page-branches">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-eyebrow text-orange-800 font-semibold">Branches</p>
@@ -51,7 +51,7 @@ export function Branches() {
         </div>
         <button
           type="button"
-          disabled={!selectedDoc || selectedDoc.versions.length === 0}
+          disabled={!selectedDoc || selectedDoc.versions.length === 0 || selectedDoc.role === 'Viewer'}
           onClick={() => setCreateOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500 disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500">
           <PlusIcon className="h-4 w-4" />
@@ -76,7 +76,7 @@ export function Branches() {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  disabled={doc.versions.length === 0}
+                  disabled={doc.versions.length === 0 || doc.role === 'Viewer'}
                   onClick={() => {
                     setSelectedDocId(doc.id);
                     setCreateOpen(true);
@@ -143,6 +143,7 @@ export function Branches() {
 
       {selectedDoc ? (
         <CreateBranchDialog
+          key={`${selectedDoc.id}-${selectedDoc.currentVersionId}-${createOpen}`}
           open={createOpen}
           doc={selectedDoc}
           onClose={() => setCreateOpen(false)}

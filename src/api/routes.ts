@@ -4,14 +4,14 @@ import { computeStructuredDiff } from "../engine/diff";
 import { computeDocumentBlame } from "../engine/provenance";
 import { explainStructuredChanges } from "../ai/explainer";
 import { answerHistoryQuestion } from "../ai/historyQa";
-import { OpenRouterGateway } from "../ai/gateway";
+import { GroqGateway } from "../ai/gateway";
 import { ProposalManager } from "../ai/proposals";
 import { StructuredChange, Version } from "../types/contracts";
 
 export function createRouter(
   versionStore: Map<string, { version: Version; content: string }>,
   proposalManager: ProposalManager,
-  gateway: OpenRouterGateway
+  gateway: GroqGateway
 ): Router {
   const router = Router();
 

@@ -3,31 +3,42 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRightIcon, RotateCcwIcon, ShieldCheckIcon, DownloadIcon, CheckIcon } from 'lucide-react';
 import { MaterialChangeBadge } from './MaterialChangeBadge';
 import { absoluteTime, shortHash } from '../utils/documents';
-import { generateFormalDocumentMarkdown } from '../utils/exportDocument';
+import * as api from '../lib/api-client';
 import type { DocumentRecord, Version } from '../types';
 
 interface VersionInspectorProps {
   doc: DocumentRecord;
   version: Version;
   parent?: Version;
+  canEdit?: boolean;
   onRestore: () => void;
 }
 
-export function VersionInspector({ doc, version, parent, onRestore }: VersionInspectorProps) {
+export function VersionInspector({ doc, version, parent, canEdit = true, onRestore }: VersionInspectorProps) {
   const [downloaded, setDownloaded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  function handleDownload() {
-    const content = generateFormalDocumentMarkdown(doc, version);
-    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${doc.id}-${version.label.toLowerCase()}-verified.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 2500);
+  async function handleDownload() {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const blob = await api.downloadVersion(version.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${safeFileName(doc.title)}-${version.label}${extensionForMime(blob.type || version.mimeType || 'application/octet-stream')}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 2500);
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'Could not download this version.');
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -51,10 +62,14 @@ export function VersionInspector({ doc, version, parent, onRestore }: VersionIns
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            data-testid="document-download"
             onClick={handleDownload}
+            disabled={downloading}
             title="Download verified snapshot"
             className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-orange-50 hover:border-orange-200">
-            {downloaded ? (
+            {downloading ? (
+              <span>Downloading...</span>
+            ) : downloaded ? (
               <>
                 <CheckIcon className="h-4 w-4 text-emerald-600" />
                 <span className="text-emerald-700">Downloaded</span>
@@ -66,17 +81,19 @@ export function VersionInspector({ doc, version, parent, onRestore }: VersionIns
               </>
             )}
           </button>
-          <button
-            type="button"
-            data-testid="version-restore"
-            onClick={onRestore}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-orange-50 hover:border-orange-200">
-            <RotateCcwIcon className="h-4 w-4 text-ink-muted" />
-            Restore
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              data-testid="version-restore"
+              onClick={onRestore}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-orange-50 hover:border-orange-200">
+              <RotateCcwIcon className="h-4 w-4 text-ink-muted" />
+              Restore
+            </button>
+          ) : null}
           {parent ? (
             <Link
-              to={`/documents/${doc.id}/compare/${version.id}`}
+              to={`/documents/${doc.id}/compare/${version.id}?branch=${encodeURIComponent(version.branch)}`}
               className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500">
               Open comparison
               <ArrowUpRightIcon className="h-4 w-4" />
@@ -84,6 +101,12 @@ export function VersionInspector({ doc, version, parent, onRestore }: VersionIns
           ) : null}
         </div>
       </div>
+
+      {downloadError ? (
+        <p className="border-t border-rose-200 bg-rose-50 px-6 py-3 text-xs font-medium text-rose-800" role="alert">
+          {downloadError}
+        </p>
+      ) : null}
 
       <div className="divide-y divide-line">
         {version.changes.length === 0 ? (
@@ -122,4 +145,32 @@ export function VersionInspector({ doc, version, parent, onRestore }: VersionIns
       </div>
     </section>
   );
+}
+
+function safeFileName(title: string): string {
+  return title.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'document';
+}
+
+function extensionForMime(mimeType: string): string {
+  const extensions: Record<string, string> = {
+    'application/pdf': '.pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+    'application/vnd.ms-powerpoint': '.ppt',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.oasis.opendocument.text': '.odt',
+    'application/vnd.oasis.opendocument.presentation': '.odp',
+    'application/vnd.oasis.opendocument.spreadsheet': '.ods',
+    'application/rtf': '.rtf',
+    'text/markdown': '.md',
+    'text/csv': '.csv',
+    'text/tab-separated-values': '.tsv',
+    'application/json': '.json',
+    'application/xml': '.xml',
+    'text/html': '.html',
+    'text/plain': '.txt',
+  };
+  return extensions[mimeType] ?? '.bin';
 }

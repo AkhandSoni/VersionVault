@@ -19,7 +19,21 @@ export type ApiCollaborator = {
   addedBy: string;
   createdAt: string;
 };
-type ApiDocument = {
+export type ApiProposal = {
+  id: string;
+  documentId: string;
+  branchId?: string;
+  sourceVersionId: string;
+  agentId: string;
+  taskDescription: string;
+  proposedContent: string;
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedBy?: string;
+  approvedAt?: string;
+  resultingVersionId?: string;
+  createdAt: string;
+};
+export type ApiDocument = {
   id: string;
   tenantId: string;
   title: string;
@@ -28,6 +42,7 @@ type ApiDocument = {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  accessRole?: 'OWNER' | 'CONTRIBUTOR' | 'VIEWER';
 };
 type ApiVersion = {
   id: string;
@@ -44,9 +59,19 @@ type ApiVersion = {
   status: string;
   createdAt: string;
 };
-type ApiBranch = { id: string; name: string; headVersionId: string | null; baseVersionId: string | null };
+export type ApiBranch = { id: string; name: string; headVersionId: string | null; baseVersionId: string | null };
+export type ApiWorkspace = {
+  document: ApiDocument;
+  versions: ApiVersion[];
+  branches: ApiBranch[];
+  changes: ApiChange[];
+  totalVersions: number;
+  hasMoreVersions: boolean;
+};
 type ApiChange = {
   id: string;
+  baseVersionId?: string;
+  targetVersionId?: string;
   type: string;
   section?: string;
   oldValue?: string;
@@ -76,7 +101,12 @@ export type ApiLineBlame = {
   commitMessage?: string;
 };
 
-const configuredBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const configuredBase = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  ''
+).replace(/\/$/, '');
 const apiBase = configuredBase || '';
 const apiOrigin = configuredBase || 'http://localhost:3000';
 let syncedAccessToken: string | null = null;
@@ -98,9 +128,24 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: { message?: string; error?: string } | T | null = null;
+  if (text) {
+    try {
+      data = JSON.parse(text) as T;
+    } catch {
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+      }
+      throw new Error('The server returned an invalid response. Please retry.');
+    }
+  }
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || `Request failed: ${response.status}`);
+    const errorData = data as { message?: string; error?: string } | null;
+    const message = errorData?.message || errorData?.error || `Request failed: ${response.status}`;
+    // Keep the server's safe, stable error code visible to the UI. This makes
+    // infrastructure/configuration failures actionable without exposing the
+    // underlying database or storage error details.
+    throw new Error(errorData?.error ? `${message} (${errorData.error})` : message);
   }
   return data as T;
 }
@@ -154,8 +199,24 @@ export async function syncBrowserSession() {
   return true;
 }
 
+/**
+ * Check the local Supabase session before making a round trip to `/auth/me`.
+ * The provider uses this to avoid probing the API on public auth/landing
+ * routes when the browser is clearly signed out.
+ */
+export async function hasBrowserSession(): Promise<boolean | null> {
+  const supabase = getBrowserSupabase();
+  if (!supabase) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  return Boolean(session?.access_token);
+}
+
 export async function getMe() {
   return apiRequest<{ user: ApiUser; memberships: ApiMembership[]; tenantId: string | null }>('/api/v1/auth/me');
+}
+
+export async function getDocument(documentId: string) {
+  return apiRequest<ApiDocument>(`/api/v1/documents/${documentId}`);
 }
 
 export async function login(email: string, password: string) {
@@ -208,6 +269,12 @@ export async function createDocument(title: string, tenantId: string) {
   });
 }
 
+export async function permanentlyDeleteDocument(documentId: string) {
+  return apiRequest<{ message: string }>(`/api/v1/documents/${documentId}?permanent=true`, {
+    method: 'DELETE',
+  });
+}
+
 export async function listVersions(documentId: string) {
   return apiRequest<{ data: ApiVersion[] }>(`/api/v1/documents/${documentId}/versions?pageSize=100`);
 }
@@ -217,14 +284,25 @@ export async function listBranches(documentId: string) {
   return response.data;
 }
 
-export async function createBranch(documentId: string, name: string, baseVersionId: string) {
+export async function getWorkspace(documentId: string) {
+  return apiRequest<ApiWorkspace>(`/api/v1/documents/${documentId}/workspace`);
+}
+
+export async function createBranch(documentId: string, name: string, baseVersionId: string, idempotencyKey?: string) {
   return apiRequest<ApiBranch>(`/api/v1/documents/${documentId}/branches`, {
     method: 'POST',
     body: JSON.stringify({ name, baseVersionId }),
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
   });
 }
 
-export async function uploadVersion(documentId: string, file: File, message?: string, branchId?: string) {
+export async function uploadVersion(
+  documentId: string,
+  file: File,
+  message?: string,
+  branchId?: string,
+  idempotencyKey?: string,
+) {
   const formData = new FormData();
   formData.set('file', file);
   if (message) formData.set('message', message);
@@ -233,13 +311,15 @@ export async function uploadVersion(documentId: string, file: File, message?: st
   return apiRequest<ApiVersion>(`/api/v1/documents/${documentId}/versions`, {
     method: 'POST',
     body: formData,
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
   });
 }
 
-export async function restoreVersion(versionId: string, message?: string, branchId?: string) {
+export async function restoreVersion(versionId: string, message?: string, branchId?: string, idempotencyKey?: string) {
   return apiRequest<ApiVersion>(`/api/v1/versions/${versionId}/restore`, {
     method: 'POST',
     body: JSON.stringify({ message, branchId }),
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
   });
 }
 
@@ -247,6 +327,24 @@ export async function getDiff(baseVersionId: string, targetVersionId: string) {
   return apiRequest<{ changes: ApiChange[]; materialChangeCount: number }>(
     `/api/v1/versions/${baseVersionId}/diff/${targetVersionId}`,
   );
+}
+
+export async function downloadVersion(versionId: string): Promise<Blob> {
+  const response = await fetch(apiUrl(`/api/v1/versions/${versionId}/content`), {
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    let message = `Download failed: ${response.status}`;
+    try {
+      const data = JSON.parse(text) as { message?: string; error?: string };
+      message = data.message || data.error || message;
+    } catch {
+      // Keep the status-based message when the server did not return JSON.
+    }
+    throw new Error(message);
+  }
+  return response.blob();
 }
 
 export async function getExplanation(baseVersionId: string, targetVersionId: string) {
@@ -292,6 +390,23 @@ export async function askHistoryQuestion(documentId: string, question: string) {
   });
 }
 
+export async function listProposals(documentId: string) {
+  const response = await apiRequest<{ data: ApiProposal[] }>(`/api/v1/documents/${documentId}/proposals`);
+  return response.data;
+}
+
+export async function reviewProposal(
+  proposalId: string,
+  action: 'approve' | 'reject',
+  idempotencyKey?: string,
+) {
+  return apiRequest<ApiProposal>(`/api/v1/proposals/${proposalId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  });
+}
+
 export function mapChange(change: ApiChange): StructuredChange {
   const severity = mapSeverity(change.severity);
   return {
@@ -318,7 +433,7 @@ export function mapExplanation(
     question: 'Why might this matter?',
     body: explanation.explanation,
     basedOn: `${fromLabel} -> ${toLabel}`,
-    agent: 'OpenRouter evidence explainer',
+    agent: 'Groq evidence explainer',
     model: explanation.model || 'configured model',
     approval: 'pending',
   };
@@ -342,6 +457,7 @@ export function mapDocument(
       timestamp: version.createdAt,
       status: doc.currentVersionId === version.id ? 'current' : branch === 'main' ? 'main' : 'branch',
       hash: version.versionHash || version.contentHash,
+      mimeType: version.mimeType,
       source: version.message || 'Uploaded revision',
       summary: version.message || `Version ${version.versionNumber} uploaded`,
       changes: changesByVersion.get(version.id) || [],
@@ -352,8 +468,14 @@ export function mapDocument(
     id: doc.id,
     title: doc.title,
     reference: doc.id.slice(0, 8).toUpperCase(),
-    role: 'Owner',
+    role: doc.accessRole === 'VIEWER' ? 'Viewer' : doc.accessRole === 'CONTRIBUTOR' ? 'Editor' : 'Owner',
     branches: branches.length ? branches.map((branch) => branch.name) : ['main'],
+    branchDetails: branches.map((branch) => ({
+      id: branch.id,
+      name: branch.name,
+      headVersionId: branch.headVersionId,
+      baseVersionId: branch.baseVersionId,
+    })),
     currentVersionId: doc.currentVersionId || mappedVersions[0]?.id || '',
     updatedAt: doc.updatedAt,
     versionCount: mappedVersions.length,
@@ -397,13 +519,17 @@ function mapCategory(value?: string): ChangeCategory {
 }
 
 function mapActivityType(value: string): ActivityEvent['type'] {
-  if (value === 'HUMAN_APPROVAL_RECORDED') return 'HUMAN_APPROVED';
+  if (value === 'HUMAN_APPROVAL_RECORDED' || value === 'AI_PROPOSAL_APPROVED') return 'HUMAN_APPROVED';
   if (
     value === 'VERSION_CREATED' ||
     value === 'DOCUMENT_CREATED' ||
+    value === 'DOCUMENT_DELETED' ||
+    value === 'VERSION_READY' ||
+    value === 'VERSION_FAILED' ||
     value === 'CHANGE_DETECTED' ||
     value === 'BRANCH_CREATED' ||
     value === 'AI_PROPOSAL_CREATED' ||
+    value === 'AI_PROPOSAL_REJECTED' ||
     value === 'VERSION_RESTORED' ||
     value === 'PERMISSION_CHANGED' ||
     value === 'DOCUMENT_DOWNLOADED'
@@ -416,7 +542,10 @@ function mapActivityType(value: string): ActivityEvent['type'] {
 function activityDetail(event: ApiActivity): string {
   const metadata = event.metadata || {};
   if (event.eventType === 'DOCUMENT_CREATED') return `Document "${metadata.title || 'document'}" created`;
+  if (event.eventType === 'DOCUMENT_DELETED') return `Document "${metadata.title || 'document'}" deleted`;
   if (event.eventType === 'VERSION_CREATED') return `Version ${metadata.versionNumber || ''} created`.trim();
+  if (event.eventType === 'VERSION_READY') return `Version ${metadata.versionNumber || ''} is ready`.trim();
+  if (event.eventType === 'VERSION_FAILED') return `Version ${metadata.versionNumber || ''} failed`.trim();
   if (event.eventType === 'BRANCH_CREATED') return `Branch "${metadata.branchName || 'branch'}" created`;
   if (event.eventType === 'VERSION_RESTORED') return `Restored from version ${metadata.restoredFromVersionId || ''}`.trim();
   if (event.eventType === 'PERMISSION_CHANGED') return `Permissions changed for ${metadata.targetUserId || 'a collaborator'}`;

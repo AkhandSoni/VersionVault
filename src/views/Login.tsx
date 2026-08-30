@@ -38,6 +38,7 @@ export function Login() {
   }
 
   return (
+    <div data-testid="page-login">
     <AuthLayout
       title="Sign in"
       subtitle="Your documents and their full history stay exactly as you left them."
@@ -106,5 +107,6 @@ export function Login() {
         </button>
       </form>
     </AuthLayout>
+    </div>
   );
 }

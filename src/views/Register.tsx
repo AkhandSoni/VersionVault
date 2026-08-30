@@ -18,8 +18,8 @@ export function Register() {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    if (!name.trim() || !normalizedEmail.includes('@') || password.length < 8) {
-      setError('Add your name, a valid email, and a password of at least 8 characters.');
+    if (!name.trim() || !normalizedEmail.includes('@') || password.length < 12) {
+      setError('Add your name, a valid email, and a password of at least 12 characters.');
       return;
     }
 
@@ -46,6 +46,7 @@ export function Register() {
   }
 
   return (
+    <div data-testid="page-register">
     <AuthLayout
       title="Create an account"
       subtitle="Start a workspace where every revision keeps its own verifiable record."
@@ -112,7 +113,7 @@ export function Register() {
             className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm font-medium text-ink focus:border-orange-500 focus:ring-1 focus:ring-orange-500" />
 
           <p id="password-hint" className="mt-1.5 text-xs text-ink-muted">
-            At least 8 characters.
+            At least 12 characters.
           </p>
         </div>
 
@@ -136,5 +137,6 @@ export function Register() {
         </button>
       </form>
     </AuthLayout>
+    </div>
   );
 }

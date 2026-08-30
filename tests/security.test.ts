@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { computeStructuredDiff } from "../src/engine/diff.js";
-import { OpenRouterGateway } from "../src/ai/gateway.js";
+import { GroqGateway } from "../src/ai/gateway.js";
 import { explainStructuredChanges } from "../src/ai/explainer.js";
 import { computeVersionHash, sha256 } from "../src/lib/hash.js";
 import { ProposalManager } from "../src/ai/proposals.js";
@@ -21,7 +21,7 @@ describe("Security & Immutability Invariants", () => {
   });
 
   it("should minimize data passed to AI prompts (never exposing raw tokens or secrets)", async () => {
-    const gateway = new OpenRouterGateway({ apiKey: "" });
+    const gateway = new GroqGateway({ apiKey: "" });
     const changes = [
       {
         id: "chg_sec_1",

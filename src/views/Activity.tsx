@@ -9,10 +9,14 @@ import type { ActivityType } from '../types';
 
 const typeLabel: Record<ActivityType, string> = {
   DOCUMENT_CREATED: 'Document created',
+  DOCUMENT_DELETED: 'Document deleted',
   VERSION_CREATED: 'Version created',
+  VERSION_READY: 'Version ready',
+  VERSION_FAILED: 'Version failed',
   CHANGE_DETECTED: 'Change detected',
   BRANCH_CREATED: 'Branch created',
   AI_PROPOSAL_CREATED: 'AI proposal created',
+  AI_PROPOSAL_REJECTED: 'AI proposal rejected',
   HUMAN_APPROVED: 'Human approved',
   VERSION_RESTORED: 'Version restored',
   PERMISSION_CHANGED: 'Permission changed',
@@ -68,7 +72,7 @@ export function Activity() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-4xl" data-testid="page-activity">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-eyebrow text-orange-800 font-semibold">Activity</p>

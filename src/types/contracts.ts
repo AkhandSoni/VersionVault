@@ -3,6 +3,8 @@
 // Unifies domain entities and Person 2 diff/AI/provenance models.
 // ============================================================
 
+import type { ActivityEventType } from './domain';
+
 export * from './domain';
 export * from './enums';
 export * from './api';
@@ -123,7 +125,7 @@ export interface ActivityEvent {
   versionId?: string;
   actorId: string;
   actorType: 'human' | 'user' | 'ai_agent' | 'system';
-  eventType: string;
+  eventType: ActivityEventType;
   timestamp?: string;
   createdAt?: string;
   metadata?: Record<string, unknown>;

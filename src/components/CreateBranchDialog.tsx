@@ -12,18 +12,27 @@ interface CreateBranchDialogProps {
 
 export function CreateBranchDialog({ open, doc, onClose, onCreate }: CreateBranchDialogProps) {
   const [branchName, setBranchName] = useState('');
-  const [baseVersion, setBaseVersion] = useState(doc.currentVersionId);
+  const [baseVersion, setBaseVersion] = useState(() => doc.currentVersionId || doc.versions[0]?.id || '');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!branchName.trim()) return;
+    if (!branchName.trim() || !baseVersion) return;
 
     setLoading(true);
+    setError(null);
     try {
-      await onCreate(branchName.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-'), baseVersion);
+      const normalizedName = branchName.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+      if (!normalizedName || normalizedName === 'main') {
+        setError('Choose a branch name other than main.');
+        return;
+      }
+      await onCreate(normalizedName, baseVersion);
       onClose();
       setBranchName('');
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Could not create this branch.');
     } finally {
       setLoading(false);
     }
@@ -108,6 +117,12 @@ export function CreateBranchDialog({ open, doc, onClose, onCreate }: CreateBranc
                 </p>
               </div>
 
+              {error ? (
+                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-medium text-rose-800" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
               <div className="mt-6 flex justify-end gap-3 pt-3 border-t border-line">
                 <button
                   type="button"
@@ -117,7 +132,7 @@ export function CreateBranchDialog({ open, doc, onClose, onCreate }: CreateBranc
                 </button>
                 <button
                   type="submit"
-                  disabled={!branchName.trim() || loading}
+                  disabled={!branchName.trim() || !baseVersion || loading}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-5 py-2 text-sm font-medium text-white shadow-xs hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 transition-all">
                   <PlusIcon className="h-4 w-4" />
                   {loading ? 'Creating…' : 'Create Branch'}

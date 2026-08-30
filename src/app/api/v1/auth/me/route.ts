@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/services/auth.service';
+import { ensurePersonalWorkspace, getCurrentUser } from '@/services/auth.service';
 import { UnauthorizedError, toApiError } from '@/lib/errors';
 import { createServiceClient } from '@/lib/supabase/server';
 
@@ -9,6 +9,8 @@ export async function GET() {
     if (!user) {
       throw new UnauthorizedError('Not authenticated');
     }
+
+    await ensurePersonalWorkspace(user.id, user.email || 'User');
 
     const supabase = await createServiceClient();
     const { data: memberships } = await supabase

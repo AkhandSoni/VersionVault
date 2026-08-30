@@ -24,6 +24,7 @@ type DocumentRow = {
   created_by: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 };
 
 const EDIT_ROLES = new Set<Role>(['OWNER', 'CONTRIBUTOR']);
@@ -86,6 +87,10 @@ export async function getDocumentAccessContext(
 
   const document = mapDocument(docRow as DocumentRow);
 
+  if ((docRow as DocumentRow).deleted_at) {
+    throw new NotFoundError('Document not found');
+  }
+
   const [{ data: membership }, { data: collaborator }] = await Promise.all([
     supabase
       .from('memberships')
@@ -105,8 +110,17 @@ export async function getDocumentAccessContext(
     throw new NotFoundError('Document not found');
   }
 
+  const accessRole: Role = document.createdBy === userId || membership?.role === 'OWNER' || collaborator?.role === 'OWNER'
+    ? 'OWNER'
+    : membership?.role === 'CONTRIBUTOR' || collaborator?.role === 'CONTRIBUTOR'
+      ? 'CONTRIBUTOR'
+      : 'VIEWER';
+
   return {
-    document,
+    document: {
+      ...document,
+      accessRole,
+    },
     membershipRole: (membership?.role as Role | undefined) ?? null,
     collaboratorRole: (collaborator?.role as Collaborator['role'] | undefined) ?? null,
   };

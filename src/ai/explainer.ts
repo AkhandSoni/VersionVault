@@ -1,5 +1,6 @@
 import { StructuredChange, AIExplanationResult } from "../types/contracts";
-import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway";
+import { GroqGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway";
+import { z } from "zod";
 
 /**
  * Generates an evidence-grounded AI explanation for structured document changes.
@@ -8,7 +9,7 @@ import { OpenRouterGateway, DEFAULT_AI_UNAVAILABLE_MSG } from "./gateway";
  */
 export async function explainStructuredChanges(
   changes: StructuredChange[],
-  gateway: OpenRouterGateway
+  gateway: GroqGateway
 ): Promise<AIExplanationResult> {
   if (!changes || changes.length === 0) {
     return {
@@ -70,7 +71,23 @@ STRICT RULES:
       };
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsedResult = z.object({
+      summary: z.string().min(1).max(4000),
+      businessImpact: z.string().min(1).max(4000),
+      riskAssessment: z.string().min(1).max(4000),
+      referencedChangeIds: z.array(z.string()).max(500).default([]),
+      confidence: z.number().min(0).max(1),
+    }).safeParse(JSON.parse(jsonMatch[0]));
+    if (!parsedResult.success) {
+      return {
+        status: "UNAVAILABLE",
+        message: DEFAULT_AI_UNAVAILABLE_MSG,
+        retryable: true,
+      };
+    }
+
+    const parsed = parsedResult.data;
+    const changeIds = new Set(changes.map((change) => change.id));
 
     return {
       status: "AVAILABLE",
@@ -78,10 +95,8 @@ STRICT RULES:
         summary: parsed.summary || "Summary of changes computed.",
         businessImpact: parsed.businessImpact || "Business impact evaluated.",
         riskAssessment: parsed.riskAssessment || "Risk evaluated.",
-        referencedChangeIds: Array.isArray(parsed.referencedChangeIds)
-          ? parsed.referencedChangeIds
-          : changes.map((c) => c.id),
-        confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.9,
+        referencedChangeIds: parsed.referencedChangeIds.filter((id) => changeIds.has(id)),
+        confidence: parsed.confidence,
       },
     };
     } catch {

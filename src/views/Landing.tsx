@@ -12,7 +12,7 @@ const chain = [
 
 export function Landing() {
   return (
-    <div className="min-h-full w-full bg-canvas">
+    <div className="min-h-full w-full bg-canvas" data-testid="page-landing">
       <header className="border-b border-line bg-surface/90 backdrop-blur sticky top-0 z-20">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-6">
           <span className="flex items-center gap-2.5">
