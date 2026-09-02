@@ -72,9 +72,9 @@ export function Activity() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl" data-testid="page-activity">
+    <div className="mx-auto w-full max-w-4xl" data-testid="page-activity">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="label-eyebrow text-orange-800 font-semibold">Activity</p>
           <h1 className="mt-1 font-serif text-3xl font-semibold text-ink">Audit trail</h1>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-muted">
@@ -84,7 +84,7 @@ export function Activity() {
         <button
           type="button"
           onClick={handleExport}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-orange-50 hover:border-orange-200">
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-orange-200 hover:bg-orange-50">
           {exported ? (
             <>
               <CheckIcon className="h-4 w-4 text-emerald-600" />
@@ -118,7 +118,7 @@ export function Activity() {
           ))}
         </div>
 
-        <div className="relative min-w-[200px] flex-1 max-w-xs">
+        <div className="relative min-w-[200px] max-w-xs flex-1">
           <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-ink-muted" />
           <input
             type="text"
@@ -144,7 +144,7 @@ export function Activity() {
               />
               <p className="text-sm font-semibold text-ink">{typeLabel[event.type]}</p>
               <p className="mt-1 text-sm leading-relaxed text-ink-soft">{event.detail}</p>
-              <p className="mt-1.5 text-xs text-ink-muted">
+              <p className="mt-1.5 break-words text-xs text-ink-muted">
                 <span className="font-medium text-ink">{event.actor}</span> · {absoluteTime(event.timestamp)} · <span className="font-mono text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200">{event.branch}</span> ·{' '}
                 <Link
                   to={`/documents/${event.documentId}`}

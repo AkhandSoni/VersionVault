@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS public.version_texts (
   version_id UUID PRIMARY KEY REFERENCES public.versions(id) ON DELETE CASCADE,
   document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  original_mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+  content_mime_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
   mime_type TEXT NOT NULL,
   text_content TEXT NOT NULL DEFAULT '',
   text_hash TEXT,

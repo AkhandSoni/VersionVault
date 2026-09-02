@@ -57,4 +57,27 @@ describe('document text extraction', () => {
     expect(result.text).toContain('Budget');
     expect(result.text).toContain('42');
   });
+
+  it('extracts accepted JSON as AI-readable text', async () => {
+    const result = await extractDocumentText(
+      Buffer.from('{"title":"Daily report","status":"approved"}', 'utf-8'),
+      'application/json',
+    );
+
+    expect(result.extractionStatus).toBe('READY');
+    expect(result.kind).toBe('json');
+    expect(result.text).toContain('Daily report');
+  });
+
+  it('extracts accepted HTML as readable text instead of exposing markup instructions', async () => {
+    const result = await extractDocumentText(
+      Buffer.from('<main><h1>Project Plan</h1><p>Ship upload support.</p></main>', 'utf-8'),
+      'text/html',
+    );
+
+    expect(result.extractionStatus).toBe('READY');
+    expect(result.kind).toBe('html');
+    expect(result.text).toContain('Project Plan');
+    expect(result.text).toContain('Ship upload support.');
+  });
 });

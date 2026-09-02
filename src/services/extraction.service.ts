@@ -21,6 +21,8 @@ export type StoredVersionText = {
   versionId: string;
   documentId: string;
   tenantId: string;
+  originalMimeType: string;
+  contentMimeType: string;
   mimeType: string;
   textContent: string;
   textHash: string | null;
@@ -107,8 +109,12 @@ async function extractDocumentTextInternal(buffer: Buffer, mimeType: string): Pr
   const kind = MIME_TO_KIND[mimeType] ?? 'unknown';
 
   try {
-    if (kind === 'text' || kind === 'markdown') {
+    if (kind === 'text' || kind === 'markdown' || kind === 'csv' || kind === 'tsv' || kind === 'json') {
       return readyExtraction(decodeUtf8(buffer), kind, 'utf8');
+    }
+
+    if (kind === 'xml' || kind === 'html') {
+      return readyExtraction(extractXmlText(decodeUtf8(buffer)), kind, 'markup-text');
     }
 
     if (kind === 'docx') {
@@ -271,6 +277,9 @@ export async function storeVersionText(params: {
     version_id: params.versionId,
     document_id: params.documentId,
     tenant_id: params.tenantId,
+    original_mime_type: params.mimeType,
+    content_mime_type: 'text/plain; charset=utf-8',
+    // Kept for older migrations/queries. Treat this as the original file MIME.
     mime_type: params.mimeType,
     text_content: bounded.text,
     text_hash: bounded.text ? sha256(Buffer.from(bounded.text, 'utf-8')) : null,
@@ -300,6 +309,8 @@ export async function getVersionText(versionId: string): Promise<StoredVersionTe
     versionId: data.version_id,
     documentId: data.document_id,
     tenantId: data.tenant_id,
+    originalMimeType: data.original_mime_type ?? data.mime_type,
+    contentMimeType: data.content_mime_type ?? 'text/plain; charset=utf-8',
     mimeType: data.mime_type,
     textContent: data.text_content ?? '',
     textHash: data.text_hash,

@@ -161,7 +161,7 @@ Support: Business hours`;
     v2.id,
     v3ProposedContent,
     "Negotiate shorter termination notice (30d -> 15d)",
-    "meta-llama/llama-3.1-70b-instruct",
+    "openai/gpt-oss-20b",
     "task_negotiate_terms"
   );
 

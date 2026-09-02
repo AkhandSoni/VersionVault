@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightIcon, LayersIcon } from 'lucide-react';
+import { ArrowRightIcon } from 'lucide-react';
+import { VisionVaultLogo } from '../components/VisionVaultLogo';
 
 const chain = [
   { step: 'What changed', detail: 'Payment Terms · 30 days → 15 days' },
@@ -16,15 +17,7 @@ export function Landing() {
       <header className="border-b border-line bg-surface/90 backdrop-blur sticky top-0 z-20">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-6">
           <span className="flex items-center gap-2.5">
-            <span
-              aria-hidden="true"
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-xs"
-            >
-              <LayersIcon className="h-4 w-4" />
-            </span>
-            <span className="font-serif text-xl font-semibold tracking-tight text-ink">
-              Version<span className="text-orange-600">Vault</span>
-            </span>
+            <VisionVaultLogo compact />
           </span>
           <nav aria-label="Account" className="ml-auto flex items-center gap-3">
             <Link

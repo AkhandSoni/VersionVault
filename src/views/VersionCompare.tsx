@@ -77,7 +77,7 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
 
   if (!doc || !version || !parent) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto w-full max-w-2xl">
         <ErrorState variant="unauthorized" />
       </div>
     );
@@ -85,7 +85,7 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
 
   if (!change) {
     return (
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto w-full max-w-2xl">
         <ErrorState
           title="No structured changes to compare"
           description={`${parent.label} to ${version.label} produced no detected changes.`}
@@ -97,7 +97,7 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
   const materialCount = version.changes.filter((item) => item.material).length;
 
   return (
-    <div className="mx-auto max-w-6xl" data-testid="page-version-compare">
+    <div className="mx-auto w-full max-w-6xl" data-testid="page-version-compare">
       <Link
         to={`/documents/${doc.id}?branch=${encodeURIComponent(version.branch)}`}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors duration-150 ease-serene hover:text-orange-600">
@@ -143,8 +143,8 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
+      <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-6">
           <DiffViewer change={change} fromLabel={parent.label} toLabel={version.label} />
           <AIExplanationPanel
             status={explanation ? status : status === 'available' ? 'unavailable' : status}
@@ -168,7 +168,7 @@ export function VersionCompare({ aiStatus = 'available' }: VersionCompareProps) 
           />
         </div>
 
-        <div id="evidence" className="space-y-6">
+        <div id="evidence" className="min-w-0 space-y-6">
           <EvidencePanel doc={doc} from={parent} to={version} change={change} />
         </div>
       </div>

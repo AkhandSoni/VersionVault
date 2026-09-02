@@ -45,10 +45,10 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-full w-full bg-canvas">
+    <div className="flex h-screen flex-col overflow-hidden bg-canvas">
       <TopBar onOpenSearch={() => setSearchOpen(true)} onToggleNav={() => setNavOpen((open) => !open)} />
 
-      <div className="mx-auto flex w-full max-w-[1600px] relative">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         {/* Mobile Navigation Drawer Backdrop */}
         {navOpen && (
           <div
@@ -60,13 +60,15 @@ export function AppShell() {
 
         <aside
           className={`${
-            navOpen ? 'fixed inset-y-0 left-0 z-30 w-72 shadow-lift block' : 'hidden'
-          } shrink-0 border-r border-line bg-surface lg:sticky lg:top-16 lg:block lg:h-[calc(100vh-4rem)] lg:w-60 lg:shadow-none`}
+            navOpen ? 'fixed inset-y-0 left-0 z-30 flex w-72 flex-col shadow-lift' : 'hidden'
+          } border-r border-line bg-surface lg:static lg:flex lg:w-60 lg:shadow-none`}
         >
-          <SideNav />
+          <div className="h-full overflow-hidden">
+            <SideNav />
+          </div>
         </aside>
 
-        <main className="min-w-0 flex-1 px-4 py-8 lg:px-8 lg:py-10">
+        <main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
           <Outlet />
         </main>
       </div>

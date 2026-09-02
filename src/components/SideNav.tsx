@@ -23,7 +23,7 @@ export function SideNav() {
   const { documents } = useVaultData();
 
   return (
-    <nav aria-label="Primary" className="flex h-full flex-col gap-7 px-4 py-6">
+    <nav aria-label="Primary" className="flex h-full flex-col gap-7 overflow-y-auto overscroll-contain px-4 py-6">
       <ul className="space-y-1">
         {primaryLinks.map(({ to, label, icon: Icon }) => (
           <li key={to}>

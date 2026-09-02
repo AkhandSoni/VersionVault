@@ -12,7 +12,7 @@ interface DocumentListProps {
 export function DocumentList({ documents, view = 'list' }: DocumentListProps) {
   if (view === 'grid') {
     return (
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {documents.map((doc) => (
           <li key={doc.id} className="flex">
             <Link
@@ -36,12 +36,12 @@ export function DocumentList({ documents, view = 'list' }: DocumentListProps) {
   }
 
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface shadow-xs">
+    <ul className="min-w-0 divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface shadow-xs">
       {documents.map((doc) => (
         <li key={doc.id}>
           <Link
             to={`/documents/${doc.id}`}
-            className="flex flex-wrap items-center gap-4 px-5 py-4 transition-colors duration-150 ease-serene hover:bg-orange-50/40">
+            className="flex min-w-0 flex-wrap items-center gap-4 px-5 py-4 transition-colors duration-150 ease-serene hover:bg-orange-50/40 sm:flex-nowrap">
             
             <span
               aria-hidden="true"
@@ -50,16 +50,16 @@ export function DocumentList({ documents, view = 'list' }: DocumentListProps) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-ink">{doc.title}</span>
-              <span className="block text-xs text-ink-muted">
+              <span className="block truncate text-xs text-ink-muted">
                 {doc.reference} · {doc.versionCount} versions · updated {relativeTime(doc.updatedAt)}
               </span>
             </span>
             {doc.reviewNeeded ? (
-              <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-900 border border-orange-200">
+              <span className="shrink-0 rounded-full border border-orange-200 bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-900">
                 Review needed
               </span>
             ) : null}
-            <span className="w-16 text-right text-xs font-medium text-ink-muted">{doc.role}</span>
+            <span className="shrink-0 text-right text-xs font-medium text-ink-muted sm:w-16">{doc.role}</span>
           </Link>
         </li>
       ))}

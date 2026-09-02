@@ -1,13 +1,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { VisionVaultLogo } from '@/components/VisionVaultLogo';
 
 const ClientApp = dynamic(() => import('@/App').then((module) => module.App), {
   ssr: false,
   loading: () => (
     <main className="min-h-screen bg-canvas px-6 py-12" role="status" aria-live="polite">
       <div className="mx-auto max-w-2xl rounded-2xl border border-line bg-surface p-8 shadow-xs">
-        <p className="label-eyebrow text-orange-800">VersionVault</p>
+        <VisionVaultLogo compact />
         <p className="mt-3 font-serif text-2xl font-semibold text-ink">Loading evidence workspace...</p>
       </div>
     </main>

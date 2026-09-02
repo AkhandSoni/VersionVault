@@ -20,12 +20,6 @@ const statusCopy: Record<UploadState, string> = {
   failed: 'Upload failed. The document state is untouched.',
 };
 
-const COMMON_FILE_EXTENSIONS = [
-  '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx',
-  '.odt', '.odp', '.ods', '.rtf', '.txt', '.md', '.markdown',
-  '.csv', '.tsv', '.json', '.xml', '.html', '.htm',
-].join(',');
-
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export function UploadZone({ onComplete }: UploadZoneProps) {
@@ -104,7 +98,7 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
       aria-labelledby="upload-heading"
       data-testid="upload-zone"
       id="document-upload"
-      className="rounded-2xl border border-line bg-surface p-6 shadow-xs sm:p-8">
+      className="min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-xs sm:p-6">
       
       <h2 id="upload-heading" className="text-sm font-semibold text-ink">
         Upload new revision
@@ -120,7 +114,7 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
           const file = e.dataTransfer.files?.[0];
           if (file) selectFile(file);
         }}
-        className={`mt-5 flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all duration-150 ease-serene ${
+        className={`mt-5 flex min-w-0 flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition-all duration-150 ease-serene sm:p-6 ${
           state === 'selected'
             ? 'border-orange-400 bg-orange-50/50'
             : 'border-line/80 bg-canvas/60 hover:border-orange-300 hover:bg-orange-50/20'
@@ -132,15 +126,15 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
           <UploadCloudIcon className="h-6 w-6" />
         </span>
 
-        <p className="mt-4 text-sm font-medium text-ink">
+        <p className="mt-4 max-w-full break-words text-sm font-medium text-ink">
           {filename ? (
-            <span className="font-mono text-orange-950 font-semibold">{filename}</span>
+            <span className="font-mono font-semibold text-orange-950">{filename}</span>
           ) : (
             'Drag your revised file here, or browse'
           )}
         </p>
-        <p className="mt-1 text-xs text-ink-muted">
-          {statusCopy[state]}{state === 'idle' ? ` Common formats: ${COMMON_FILE_EXTENSIONS}` : ''}
+        <p className="mt-1 max-w-full text-wrap text-xs leading-relaxed text-ink-muted">
+          {statusCopy[state]}
         </p>
 
         <input
@@ -161,15 +155,15 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="Optional revision message"
-          className="mt-5 min-h-20 w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          className="mt-5 min-h-20 w-full resize-none rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-muted focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
         />
 
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <div className="mt-5 flex w-full flex-wrap justify-center gap-2">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={state === 'uploading' || state === 'processing'}
-            className="rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium text-ink transition-colors duration-150 ease-serene hover:bg-orange-50 hover:border-orange-200 disabled:cursor-not-allowed disabled:opacity-50">
+            className="inline-flex items-center justify-center rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium text-ink transition-colors duration-150 ease-serene hover:border-orange-200 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50">
             Choose file
           </button>
           <button
@@ -177,7 +171,7 @@ export function UploadZone({ onComplete }: UploadZoneProps) {
             data-testid="upload-submit"
             disabled={state !== 'selected'}
             onClick={() => void submitUpload()}
-            className="rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all duration-150 ease-serene hover:from-orange-500 hover:to-amber-500 disabled:cursor-not-allowed disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500 disabled:shadow-none">
+            className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all duration-150 ease-serene hover:from-orange-500 hover:to-amber-500 disabled:cursor-not-allowed disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500 disabled:shadow-none">
             Upload revision
           </button>
         </div>

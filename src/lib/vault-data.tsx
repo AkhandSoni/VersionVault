@@ -17,6 +17,7 @@ type VaultContextValue = {
   createDocument: (title: string, initialContent?: string) => Promise<DocumentRecord>;
   deleteDocument: (documentId: string) => Promise<void>;
   uploadRevision: (documentId: string, file: File, message?: string, branchId?: string, idempotencyKey?: string) => Promise<{
+    id: string;
     versionNumber: number;
     status: string;
     branchId: string;
@@ -217,6 +218,7 @@ export function VaultDataProvider({ children }: { children: React.ReactNode }) {
       // is not held hostage by a second full workspace read.
       void refreshDocument(documentId).catch(() => undefined);
       return {
+        id: version.id,
         versionNumber: version.versionNumber,
         status: version.status,
         branchId: version.branchId,

@@ -165,6 +165,8 @@ CREATE TABLE IF NOT EXISTS public.version_texts (
   version_id UUID PRIMARY KEY REFERENCES public.versions(id) ON DELETE CASCADE,
   document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  original_mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+  content_mime_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
   mime_type TEXT NOT NULL,
   text_content TEXT NOT NULL DEFAULT '',
   text_hash TEXT,
@@ -989,6 +991,8 @@ CREATE TABLE IF NOT EXISTS public.version_texts (
   version_id UUID PRIMARY KEY REFERENCES public.versions(id) ON DELETE CASCADE,
   document_id UUID NOT NULL REFERENCES public.documents(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  original_mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+  content_mime_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8',
   mime_type TEXT NOT NULL,
   text_content TEXT NOT NULL DEFAULT '',
   text_hash TEXT,
@@ -1741,6 +1745,19 @@ END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.purge_document(UUID, UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.purge_document(UUID, UUID) TO service_role;
+
+-- 015_ai_text_shadow_columns.sql
+-- Keep uploaded originals and AI-readable extracted text explicitly separate.
+ALTER TABLE public.version_texts
+  ADD COLUMN IF NOT EXISTS original_mime_type TEXT,
+  ADD COLUMN IF NOT EXISTS content_mime_type TEXT NOT NULL DEFAULT 'text/plain; charset=utf-8';
+
+UPDATE public.version_texts
+SET original_mime_type = COALESCE(original_mime_type, mime_type),
+    content_mime_type = COALESCE(NULLIF(content_mime_type, ''), 'text/plain; charset=utf-8');
+
+ALTER TABLE public.version_texts
+  ALTER COLUMN original_mime_type SET NOT NULL;
 
 -- Ensure PostgREST sees functions/tables created by this script immediately.
 NOTIFY pgrst, 'reload schema';

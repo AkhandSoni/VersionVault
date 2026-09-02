@@ -40,9 +40,9 @@ export function Branches() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl" data-testid="page-branches">
+    <div className="mx-auto w-full max-w-5xl" data-testid="page-branches">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="label-eyebrow text-orange-800 font-semibold">Branches</p>
           <h1 className="mt-1 font-serif text-3xl font-semibold text-ink">Parallel lines of work</h1>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-muted">
@@ -53,7 +53,7 @@ export function Branches() {
           type="button"
           disabled={!selectedDoc || selectedDoc.versions.length === 0 || selectedDoc.role === 'Viewer'}
           onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500 disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500">
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500 disabled:from-stone-200 disabled:to-stone-200 disabled:text-stone-500">
           <PlusIcon className="h-4 w-4" />
           Create Branch
         </button>
@@ -67,13 +67,13 @@ export function Branches() {
 
       <div className="mt-8 space-y-6">
         {documents.map((doc) => (
-          <article key={doc.id} className="overflow-hidden rounded-2xl border border-line bg-surface shadow-xs">
+          <article key={doc.id} className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-xs">
             <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line bg-gradient-to-r from-surface to-orange-50/20 px-6 py-4">
-              <div>
+              <div className="min-w-0">
                 <p className="label-eyebrow text-ink-muted">{doc.reference}</p>
                 <h2 className="mt-0.5 font-serif text-lg font-semibold text-ink">{doc.title}</h2>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex shrink-0 flex-wrap items-center gap-3">
                 <button
                   type="button"
                   disabled={doc.versions.length === 0 || doc.role === 'Viewer'}

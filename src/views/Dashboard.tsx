@@ -64,9 +64,9 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl" data-testid="page-dashboard">
+    <div className="mx-auto w-full max-w-6xl" data-testid="page-dashboard">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="label-eyebrow text-orange-800 font-semibold">Overview</p>
           <h1 className="mt-1 font-serif text-3xl font-semibold text-ink">Recent material changes</h1>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-muted">
@@ -74,7 +74,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
             way.
           </p>
         </div>
-        <dl className="flex gap-8">
+        <dl className="flex flex-wrap gap-6 sm:gap-8">
           <div>
             <dt className="label-eyebrow">Documents</dt>
             <dd className="mt-0.5 font-serif text-2xl font-semibold text-ink">{documents.length}</dd>
@@ -129,8 +129,8 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
       </ul>
 
       <div className="mt-12">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
             <h2 className="font-serif text-2xl font-semibold text-ink">All documents</h2>
             <p className="mt-1 text-sm text-ink-muted">
               Select any document to view its version timeline and diff history.
@@ -140,7 +140,7 @@ export function Dashboard({ documentView = 'list' }: DashboardProps) {
             type="button"
             onClick={() => setCreateOpen(true)}
             disabled={!canCreate}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs hover:from-orange-500 hover:to-amber-500 transition-all">
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:from-orange-500 hover:to-amber-500 disabled:cursor-not-allowed disabled:opacity-60">
             <PlusIcon className="h-4 w-4" />
             New Document
           </button>

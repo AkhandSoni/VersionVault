@@ -67,7 +67,7 @@ describe("Security & Immutability Invariants", () => {
       "ver_base_1",
       "Proposed new text",
       "Refactor liability cap",
-      "meta-llama/llama-3.1-70b-instruct"
+      "openai/gpt-oss-20b"
     );
 
     expect(proposal.status).toBe("PENDING");

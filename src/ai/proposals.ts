@@ -13,7 +13,7 @@ export class ProposalManager {
     sourceVersionId: string,
     proposedContent: string,
     rationale: string,
-    model = "meta-llama/llama-3.1-70b-instruct",
+    model = "openai/gpt-oss-20b",
     taskId = "task_ai_edit"
   ): AIProposal {
     const proposalId = "prop_" + Math.random().toString(36).substring(2, 11);
